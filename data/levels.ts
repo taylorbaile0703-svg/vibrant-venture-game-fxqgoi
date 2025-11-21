@@ -1,0 +1,68 @@
+
+import { Level } from '@/types/game';
+
+export const LEVELS: Level[] = [
+  {
+    id: 1,
+    name: 'Warm Up',
+    description: 'Get familiar with the basics',
+    targetScore: 500,
+    timeLimit: 60,
+    orbSpawnRate: 1500,
+    maxOrbs: 5,
+    specialOrbChance: 0.1,
+    backgroundColor: '#E3F2FD',
+  },
+  {
+    id: 2,
+    name: 'Speed Rush',
+    description: 'Faster orbs, bigger rewards',
+    targetScore: 1000,
+    timeLimit: 60,
+    orbSpawnRate: 1200,
+    maxOrbs: 7,
+    specialOrbChance: 0.15,
+    backgroundColor: '#F3E5F5',
+  },
+  {
+    id: 3,
+    name: 'Chaos Mode',
+    description: 'Watch out for bombs!',
+    targetScore: 1500,
+    timeLimit: 60,
+    orbSpawnRate: 1000,
+    maxOrbs: 10,
+    specialOrbChance: 0.25,
+    backgroundColor: '#FFF3E0',
+  },
+  {
+    id: 4,
+    name: 'Time Trial',
+    description: 'Race against the clock',
+    targetScore: 2000,
+    timeLimit: 45,
+    orbSpawnRate: 800,
+    maxOrbs: 12,
+    specialOrbChance: 0.3,
+    backgroundColor: '#E8F5E9',
+  },
+  {
+    id: 5,
+    name: 'Master Challenge',
+    description: 'The ultimate test',
+    targetScore: 3000,
+    timeLimit: 60,
+    orbSpawnRate: 600,
+    maxOrbs: 15,
+    specialOrbChance: 0.35,
+    backgroundColor: '#FCE4EC',
+  },
+];
+
+export const ORB_COLORS = {
+  normal: ['#6200EE', '#03DAC5', '#FF4081', '#BB86FC', '#018786'],
+  bonus: '#FFD700',
+  bomb: '#FF0000',
+  freeze: '#00BCD4',
+  multiplier: '#FF6F00',
+};
