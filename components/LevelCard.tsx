@@ -1,11 +1,8 @@
 
-import React from 'react';
-import { TouchableOpacity, View, Text, StyleSheet, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { TouchableOpacity, View, Text, StyleSheet, Dimensions, ScaledSize } from 'react-native';
 import { colors } from '@/styles/commonStyles';
 import { Level } from '@/types/game';
-
-const { width } = Dimensions.get('window');
-const cardWidth = (width - 60) / 4;
 
 interface LevelCardProps {
   level: Level;
@@ -16,12 +13,39 @@ interface LevelCardProps {
 }
 
 export const LevelCard: React.FC<LevelCardProps> = ({ level, isUnlocked, highScore, onPress, compact = false }) => {
+  // Use state for dimensions to make them reactive
+  const [dimensions, setDimensions] = useState(() => {
+    const window = Dimensions.get('window');
+    const cardWidth = (window.width - 60) / 4;
+    return {
+      width: window.width,
+      cardWidth: cardWidth,
+    };
+  });
+
+  // Listen for dimension changes
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
+      const cardWidth = (window.width - 60) / 4;
+      setDimensions({
+        width: window.width,
+        cardWidth: cardWidth,
+      });
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
   if (compact) {
     return (
       <TouchableOpacity
         style={[
           styles.compactCard,
           { 
+            width: dimensions.cardWidth,
+            height: dimensions.cardWidth,
             backgroundColor: isUnlocked ? level.backgroundColor : '#E0E0E0',
             opacity: isUnlocked ? 1 : 0.6,
           },
@@ -146,8 +170,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   compactCard: {
-    width: cardWidth,
-    height: cardWidth,
     borderRadius: 12,
     marginBottom: 10,
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, Dimensions, TouchableOpacity, Text, Alert, Platform } from 'react-native';
+import { View, StyleSheet, Dimensions, TouchableOpacity, Text, Alert, Platform, ScaledSize } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -17,10 +17,6 @@ import { ComboIndicator } from '@/components/ComboIndicator';
 import { colors } from '@/styles/commonStyles';
 import { Orb, GameState } from '@/types/game';
 import { LEVELS, ORB_COLORS } from '@/data/levels';
-
-const { width, height } = Dimensions.get('window');
-const GAME_AREA_TOP = Platform.OS === 'android' ? 200 : 180;
-const GAME_AREA_BOTTOM = height - 100;
 
 interface Particle {
   id: string;
@@ -42,6 +38,17 @@ export default function GameScreen() {
   const params = useLocalSearchParams();
   const levelId = parseInt(params.levelId as string) || 1;
   const level = LEVELS.find(l => l.id === levelId) || LEVELS[0];
+
+  // Use state for dimensions to make them reactive
+  const [dimensions, setDimensions] = useState(() => {
+    const window = Dimensions.get('window');
+    return {
+      width: window.width,
+      height: window.height,
+      gameAreaTop: Platform.OS === 'android' ? 200 : 180,
+      gameAreaBottom: window.height - 100,
+    };
+  });
 
   const [orbs, setOrbs] = useState<Orb[]>([]);
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -79,6 +86,23 @@ export default function GameScreen() {
       transform: [{ translateX: shakeX.value }, { translateY: shakeY.value }],
     };
   });
+
+  // Listen for dimension changes
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
+      console.log('Dimensions changed:', window.width, 'x', window.height);
+      setDimensions({
+        width: window.width,
+        height: window.height,
+        gameAreaTop: Platform.OS === 'android' ? 200 : 180,
+        gameAreaBottom: window.height - 100,
+      });
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
 
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -153,15 +177,15 @@ export default function GameScreen() {
   }, [levelId, level.maxOrbs, level.orbSpawnRate]);
 
   const createOrb = useCallback((): Orb => {
-    const baseSize = 60;
-    const sizeVariation = level.orbSizeVariation * 80;
+    const baseSize = Math.min(dimensions.width * 0.15, 60);
+    const sizeVariation = level.orbSizeVariation * Math.min(dimensions.width * 0.2, 80);
     const orbSize = baseSize + (Math.random() * sizeVariation);
     
-    const safeWidth = width - orbSize - 40;
-    const safeHeight = GAME_AREA_BOTTOM - GAME_AREA_TOP - orbSize;
+    const safeWidth = dimensions.width - orbSize - 40;
+    const safeHeight = dimensions.gameAreaBottom - dimensions.gameAreaTop - orbSize;
     
-    const x = Math.max(20, Math.min(Math.random() * safeWidth + 20, width - orbSize - 20));
-    const y = Math.max(GAME_AREA_TOP, Math.min(GAME_AREA_TOP + Math.random() * safeHeight, GAME_AREA_BOTTOM - orbSize));
+    const x = Math.max(20, Math.min(Math.random() * safeWidth + 20, dimensions.width - orbSize - 20));
+    const y = Math.max(dimensions.gameAreaTop, Math.min(dimensions.gameAreaTop + Math.random() * safeHeight, dimensions.gameAreaBottom - orbSize));
 
     const rand = Math.random();
     let orbType: Orb['type'] = 'normal';
@@ -199,7 +223,7 @@ export default function GameScreen() {
       type: orbType,
       speed: level.orbSpeedMultiplier,
     };
-  }, [level.orbSizeVariation, level.specialOrbChance, level.orbSpeedMultiplier]);
+  }, [level.orbSizeVariation, level.specialOrbChance, level.orbSpeedMultiplier, dimensions]);
 
   const scheduleOrbRemoval = useCallback((orbId: string) => {
     const baseLifetime = 3000;
@@ -526,7 +550,7 @@ const styles = StyleSheet.create({
     zIndex: 200,
   },
   pauseText: {
-    fontSize: Math.min(width * 0.14, 56),
+    fontSize: 56,
     fontWeight: '900',
     color: '#FFFFFF',
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
@@ -534,7 +558,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 6,
   },
   pauseSubtext: {
-    fontSize: Math.min(width * 0.045, 18),
+    fontSize: 18,
     fontWeight: '600',
     color: '#CCCCCC',
     marginTop: 16,
@@ -551,9 +575,9 @@ const styles = StyleSheet.create({
   },
   controlButton: {
     backgroundColor: colors.card,
-    width: Math.min(width * 0.18, 70),
-    height: Math.min(width * 0.18, 70),
-    borderRadius: Math.min(width * 0.09, 35),
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
     boxShadow: '0px 6px 12px rgba(0, 0, 0, 0.3)',
@@ -562,6 +586,6 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   controlButtonText: {
-    fontSize: Math.min(width * 0.08, 32),
+    fontSize: 32,
   },
 });

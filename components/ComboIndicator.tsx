@@ -1,6 +1,6 @@
 
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Dimensions, Platform, ScaledSize } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -9,8 +9,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-const { width, height } = Dimensions.get('window');
-
 interface ComboIndicatorProps {
   combo: number;
 }
@@ -18,6 +16,29 @@ interface ComboIndicatorProps {
 export const ComboIndicator: React.FC<ComboIndicatorProps> = ({ combo }) => {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(combo > 0 ? 1 : 0);
+
+  // Use state for dimensions to make them reactive
+  const [dimensions, setDimensions] = useState(() => {
+    const window = Dimensions.get('window');
+    return {
+      width: window.width,
+      height: window.height,
+    };
+  });
+
+  // Listen for dimension changes
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
+      setDimensions({
+        width: window.width,
+        height: window.height,
+      });
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (combo > 0) {
@@ -40,14 +61,29 @@ export const ComboIndicator: React.FC<ComboIndicatorProps> = ({ combo }) => {
 
   if (combo < 2) return null;
 
+  const comboTextFontSize = Math.min(dimensions.width * 0.04, 16);
+  const comboNumberFontSize = Math.min(dimensions.width * 0.08, 32);
+  const flameFontSize = Math.min(dimensions.width * 0.05, 20);
+  const topPosition = Platform.OS === 'android' ? dimensions.height * 0.18 : dimensions.height * 0.17;
+  const paddingHorizontal = Math.min(dimensions.width * 0.06, 24);
+  const paddingVertical = Math.min(dimensions.height * 0.015, 12);
+
   return (
-    <Animated.View style={[styles.container, animatedStyle]}>
-      <Text style={styles.comboText}>COMBO</Text>
-      <Text style={styles.comboNumber}>x{combo}</Text>
+    <Animated.View style={[
+      styles.container,
+      {
+        top: topPosition,
+        paddingHorizontal: paddingHorizontal,
+        paddingVertical: paddingVertical,
+      },
+      animatedStyle
+    ]}>
+      <Text style={[styles.comboText, { fontSize: comboTextFontSize }]}>COMBO</Text>
+      <Text style={[styles.comboNumber, { fontSize: comboNumberFontSize }]}>x{combo}</Text>
       <View style={styles.flames}>
-        <Text style={styles.flame}>🔥</Text>
-        {combo >= 5 && <Text style={styles.flame}>🔥</Text>}
-        {combo >= 10 && <Text style={styles.flame}>🔥</Text>}
+        <Text style={[styles.flame, { fontSize: flameFontSize }]}>🔥</Text>
+        {combo >= 5 && <Text style={[styles.flame, { fontSize: flameFontSize }]}>🔥</Text>}
+        {combo >= 10 && <Text style={[styles.flame, { fontSize: flameFontSize }]}>🔥</Text>}
       </View>
     </Animated.View>
   );
@@ -56,11 +92,8 @@ export const ComboIndicator: React.FC<ComboIndicatorProps> = ({ combo }) => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: Platform.OS === 'android' ? height * 0.18 : height * 0.17,
     alignSelf: 'center',
     backgroundColor: 'rgba(255, 69, 0, 0.95)',
-    paddingHorizontal: Math.min(width * 0.06, 24),
-    paddingVertical: Math.min(height * 0.015, 12),
     borderRadius: 20,
     borderWidth: 3,
     borderColor: '#FFD700',
@@ -69,14 +102,12 @@ const styles = StyleSheet.create({
     zIndex: 150,
   },
   comboText: {
-    fontSize: Math.min(width * 0.04, 16),
     fontWeight: '800',
     color: '#FFFFFF',
     textAlign: 'center',
     letterSpacing: 2,
   },
   comboNumber: {
-    fontSize: Math.min(width * 0.08, 32),
     fontWeight: '900',
     color: '#FFD700',
     textAlign: 'center',
@@ -90,7 +121,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   flame: {
-    fontSize: Math.min(width * 0.05, 20),
     marginHorizontal: 2,
   },
 });

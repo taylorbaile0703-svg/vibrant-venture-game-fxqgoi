@@ -1,6 +1,6 @@
 
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Dimensions, Platform, ScaledSize } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -10,8 +10,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { colors } from '@/styles/commonStyles';
 import { GameState } from '@/types/game';
-
-const { width, height } = Dimensions.get('window');
 
 interface GameHUDProps {
   gameState: GameState;
@@ -23,6 +21,29 @@ export const GameHUD: React.FC<GameHUDProps> = ({ gameState, levelName, targetSc
   const scoreScale = useSharedValue(1);
   const livesScale = useSharedValue(1);
   const timeScale = useSharedValue(1);
+
+  // Use state for dimensions to make them reactive
+  const [dimensions, setDimensions] = useState(() => {
+    const window = Dimensions.get('window');
+    return {
+      width: window.width,
+      height: window.height,
+    };
+  });
+
+  // Listen for dimension changes
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
+      setDimensions({
+        width: window.width,
+        height: window.height,
+      });
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
 
   useEffect(() => {
     scoreScale.value = withSequence(
@@ -74,26 +95,43 @@ export const GameHUD: React.FC<GameHUDProps> = ({ gameState, levelName, targetSc
   const progressPercentage = Math.min((gameState.score / targetScore) * 100, 100);
   const isLowTime = gameState.timeRemaining <= 10;
 
+  const labelFontSize = Math.min(dimensions.width * 0.03, 12);
+  const valueFontSize = Math.min(dimensions.width * 0.07, 28);
+  const sublabelFontSize = Math.min(dimensions.width * 0.025, 10);
+  const heartFontSize = Math.min(dimensions.width * 0.055, 22);
+  const badgeIconFontSize = Math.min(dimensions.width * 0.04, 16);
+  const multiplierTextFontSize = Math.min(dimensions.width * 0.035, 14);
+  const powerUpTextFontSize = Math.min(dimensions.width * 0.03, 12);
+  const paddingHorizontal = Math.min(dimensions.width * 0.04, 16);
+  const paddingBottom = dimensions.height * 0.02;
+
   return (
-    <View style={styles.container}>
-      <View style={styles.topRow}>
+    <View style={[
+      styles.container,
+      {
+        paddingTop: Platform.OS === 'android' ? 60 : 50,
+        paddingHorizontal: paddingHorizontal,
+        paddingBottom: paddingBottom,
+      }
+    ]}>
+      <View style={[styles.topRow, { marginBottom: dimensions.height * 0.015 }]}>
         <View style={styles.statBox}>
-          <Text style={styles.label}>Level {gameState.level}</Text>
-          <Text style={styles.sublabel}>{levelName}</Text>
+          <Text style={[styles.label, { fontSize: labelFontSize }]}>Level {gameState.level}</Text>
+          <Text style={[styles.sublabel, { fontSize: sublabelFontSize }]}>{levelName}</Text>
         </View>
         
         <Animated.View style={[styles.statBox, scoreAnimatedStyle]}>
-          <Text style={styles.label}>Score</Text>
-          <Text style={[styles.value, { color: colors.primary }]}>{gameState.score}</Text>
+          <Text style={[styles.label, { fontSize: labelFontSize }]}>Score</Text>
+          <Text style={[styles.value, { color: colors.primary, fontSize: valueFontSize }]}>{gameState.score}</Text>
           <View style={styles.progressBarContainer}>
             <View style={[styles.progressBar, { width: `${progressPercentage}%` }]} />
           </View>
-          <Text style={styles.sublabel}>Goal: {targetScore}</Text>
+          <Text style={[styles.sublabel, { fontSize: sublabelFontSize }]}>Goal: {targetScore}</Text>
         </Animated.View>
         
         <Animated.View style={[styles.statBox, timeAnimatedStyle]}>
-          <Text style={styles.label}>Time</Text>
-          <Text style={[styles.value, isLowTime && styles.lowTimeValue]}>
+          <Text style={[styles.label, { fontSize: labelFontSize }]}>Time</Text>
+          <Text style={[styles.value, { fontSize: valueFontSize }, isLowTime && styles.lowTimeValue]}>
             {formatTime(gameState.timeRemaining)}
           </Text>
         </Animated.View>
@@ -101,9 +139,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({ gameState, levelName, targetSc
       
       <View style={styles.bottomRow}>
         <Animated.View style={[styles.livesContainer, livesAnimatedStyle]}>
-          <Text style={styles.label}>Lives: </Text>
+          <Text style={[styles.label, { fontSize: labelFontSize }]}>Lives: </Text>
           {Array.from({ length: 3 }).map((_, index) => (
-            <Text key={index} style={[styles.heart, index >= gameState.lives && styles.lostHeart]}>
+            <Text key={index} style={[styles.heart, { fontSize: heartFontSize }, index >= gameState.lives && styles.lostHeart]}>
               {index < gameState.lives ? '❤️' : '🖤'}
             </Text>
           ))}
@@ -111,16 +149,28 @@ export const GameHUD: React.FC<GameHUDProps> = ({ gameState, levelName, targetSc
         
         <View style={styles.powerUpsContainer}>
           {gameState.multiplier > 1 && (
-            <View style={styles.multiplierBadge}>
-              <Text style={styles.badgeIcon}>✨</Text>
-              <Text style={styles.multiplierText}>x{gameState.multiplier}</Text>
+            <View style={[
+              styles.multiplierBadge,
+              {
+                paddingHorizontal: Math.min(dimensions.width * 0.03, 12),
+                paddingVertical: Math.min(dimensions.height * 0.008, 6),
+              }
+            ]}>
+              <Text style={[styles.badgeIcon, { fontSize: badgeIconFontSize }]}>✨</Text>
+              <Text style={[styles.multiplierText, { fontSize: multiplierTextFontSize }]}>x{gameState.multiplier}</Text>
             </View>
           )}
           
           {gameState.freezeActive && (
-            <View style={styles.powerUpBadge}>
-              <Text style={styles.badgeIcon}>❄️</Text>
-              <Text style={styles.powerUpText}>FREEZE</Text>
+            <View style={[
+              styles.powerUpBadge,
+              {
+                paddingHorizontal: Math.min(dimensions.width * 0.03, 12),
+                paddingVertical: Math.min(dimensions.height * 0.008, 6),
+              }
+            ]}>
+              <Text style={[styles.badgeIcon, { fontSize: badgeIconFontSize }]}>❄️</Text>
+              <Text style={[styles.powerUpText, { fontSize: powerUpTextFontSize }]}>FREEZE</Text>
             </View>
           )}
         </View>
@@ -135,9 +185,6 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    paddingTop: Platform.OS === 'android' ? 60 : 50,
-    paddingHorizontal: Math.min(width * 0.04, 16),
-    paddingBottom: height * 0.02,
     backgroundColor: 'rgba(255, 255, 255, 0.98)',
     boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.15)',
     elevation: 5,
@@ -146,14 +193,12 @@ const styles = StyleSheet.create({
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: height * 0.015,
   },
   statBox: {
     alignItems: 'center',
     flex: 1,
   },
   label: {
-    fontSize: Math.min(width * 0.03, 12),
     color: colors.textSecondary,
     fontWeight: '700',
     marginBottom: 4,
@@ -161,7 +206,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   value: {
-    fontSize: Math.min(width * 0.07, 28),
     color: colors.primary,
     fontWeight: '900',
   },
@@ -169,7 +213,6 @@ const styles = StyleSheet.create({
     color: '#FF0000',
   },
   sublabel: {
-    fontSize: Math.min(width * 0.025, 10),
     color: colors.textSecondary,
     marginTop: 2,
     fontWeight: '600',
@@ -197,7 +240,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heart: {
-    fontSize: Math.min(width * 0.055, 22),
     marginLeft: 4,
   },
   lostHeart: {
@@ -211,27 +253,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.accent,
-    paddingHorizontal: Math.min(width * 0.03, 12),
-    paddingVertical: Math.min(height * 0.008, 6),
     borderRadius: 20,
     boxShadow: '0px 2px 6px rgba(255, 64, 129, 0.4)',
     elevation: 4,
   },
   badgeIcon: {
-    fontSize: Math.min(width * 0.04, 16),
     marginRight: 4,
   },
   multiplierText: {
     color: '#FFFFFF',
     fontWeight: '900',
-    fontSize: Math.min(width * 0.035, 14),
   },
   powerUpBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.secondary,
-    paddingHorizontal: Math.min(width * 0.03, 12),
-    paddingVertical: Math.min(height * 0.008, 6),
     borderRadius: 20,
     boxShadow: '0px 2px 6px rgba(3, 218, 197, 0.4)',
     elevation: 4,
@@ -239,6 +275,5 @@ const styles = StyleSheet.create({
   powerUpText: {
     color: '#FFFFFF',
     fontWeight: '900',
-    fontSize: Math.min(width * 0.03, 12),
   },
 });
