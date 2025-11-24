@@ -1,17 +1,44 @@
 
 import React from 'react';
-import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
+import { TouchableOpacity, View, Text, StyleSheet, Dimensions } from 'react-native';
 import { colors } from '@/styles/commonStyles';
 import { Level } from '@/types/game';
+
+const { width } = Dimensions.get('window');
+const cardWidth = (width - 60) / 4;
 
 interface LevelCardProps {
   level: Level;
   isUnlocked: boolean;
   highScore: number;
   onPress: () => void;
+  compact?: boolean;
 }
 
-export const LevelCard: React.FC<LevelCardProps> = ({ level, isUnlocked, highScore, onPress }) => {
+export const LevelCard: React.FC<LevelCardProps> = ({ level, isUnlocked, highScore, onPress, compact = false }) => {
+  if (compact) {
+    return (
+      <TouchableOpacity
+        style={[
+          styles.compactCard,
+          { 
+            backgroundColor: isUnlocked ? level.backgroundColor : '#E0E0E0',
+            opacity: isUnlocked ? 1 : 0.6,
+          },
+        ]}
+        onPress={onPress}
+        disabled={!isUnlocked}
+        activeOpacity={0.7}
+      >
+        <View style={styles.compactContent}>
+          <Text style={styles.compactLevelNumber}>{level.id}</Text>
+          {!isUnlocked && <Text style={styles.compactLock}>🔒</Text>}
+          {highScore > 0 && <Text style={styles.compactStar}>⭐</Text>}
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <TouchableOpacity
       style={[
@@ -117,5 +144,37 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
+  },
+  compactCard: {
+    width: cardWidth,
+    height: cardWidth,
+    borderRadius: 12,
+    marginBottom: 10,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compactContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compactLevelNumber: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  compactLock: {
+    fontSize: 16,
+    position: 'absolute',
+    top: -8,
+    right: -8,
+  },
+  compactStar: {
+    fontSize: 12,
+    position: 'absolute',
+    bottom: -8,
+    right: -8,
   },
 });

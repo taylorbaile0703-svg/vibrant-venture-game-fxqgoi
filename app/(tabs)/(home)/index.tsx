@@ -89,15 +89,18 @@ export default function HomeScreen() {
 
         <View style={styles.levelsContainer}>
           <Text style={styles.sectionTitle}>Select Level</Text>
-          {LEVELS.map((level) => (
-            <LevelCard
-              key={level.id}
-              level={level}
-              isUnlocked={unlockedLevels.includes(level.id)}
-              highScore={highScores[level.id] || 0}
-              onPress={() => handleLevelPress(level.id)}
-            />
-          ))}
+          <View style={styles.gridContainer}>
+            {LEVELS.map((level, index) => (
+              <LevelCard
+                key={index}
+                level={level}
+                isUnlocked={unlockedLevels.includes(level.id)}
+                highScore={highScores[level.id] || 0}
+                onPress={() => handleLevelPress(level.id)}
+                compact={true}
+              />
+            ))}
+          </View>
         </View>
 
         <View style={styles.footer}>
@@ -162,6 +165,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.text,
     marginBottom: 16,
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
   footer: {
     alignItems: 'center',
