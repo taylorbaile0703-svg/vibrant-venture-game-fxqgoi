@@ -18,7 +18,7 @@ interface GameOrbProps {
   onPress: (orb: Orb) => void;
 }
 
-export const GameOrb: React.FC<GameOrbProps> = ({ orb, onPress }) => {
+export const GameOrb = React.memo<GameOrbProps>(({ orb, onPress }) => {
   const scale = useSharedValue(0);
   const opacity = useSharedValue(1);
   const rotation = useSharedValue(0);
@@ -63,7 +63,7 @@ export const GameOrb: React.FC<GameOrbProps> = ({ orb, onPress }) => {
         false
       );
     }
-  }, []);
+  }, [orb.type]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -85,6 +85,7 @@ export const GameOrb: React.FC<GameOrbProps> = ({ orb, onPress }) => {
 
   const handlePress = () => {
     if (hasBeenPressed.current) {
+      console.log('Orb already pressed, ignoring');
       return;
     }
     hasBeenPressed.current = true;
@@ -113,21 +114,6 @@ export const GameOrb: React.FC<GameOrbProps> = ({ orb, onPress }) => {
         return '✨';
       default:
         return '';
-    }
-  };
-
-  const getOrbGradient = () => {
-    switch (orb.type) {
-      case 'bonus':
-        return ['#FFD700', '#FFA500'];
-      case 'bomb':
-        return ['#FF0000', '#8B0000'];
-      case 'freeze':
-        return ['#00BCD4', '#0097A7'];
-      case 'multiplier':
-        return ['#FF6F00', '#E65100'];
-      default:
-        return [orb.color, orb.color];
     }
   };
 
@@ -202,7 +188,9 @@ export const GameOrb: React.FC<GameOrbProps> = ({ orb, onPress }) => {
       </TouchableOpacity>
     </Animated.View>
   );
-};
+});
+
+GameOrb.displayName = 'GameOrb';
 
 const styles = StyleSheet.create({
   orbContainer: {

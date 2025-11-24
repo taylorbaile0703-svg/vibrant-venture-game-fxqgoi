@@ -85,25 +85,42 @@ export default function GameScreen() {
   }, [gameState]);
 
   useEffect(() => {
+    console.log('Game component mounted, starting game');
     startGame();
     return () => {
+      console.log('Game component unmounting, cleaning up');
       cleanup();
     };
   }, []);
 
-  const cleanup = () => {
+  const cleanup = useCallback(() => {
     console.log('Cleaning up game resources');
-    if (spawnInterval.current) clearInterval(spawnInterval.current);
-    if (timerInterval.current) clearInterval(timerInterval.current);
-    if (freezeTimeout.current) clearTimeout(freezeTimeout.current);
-    if (multiplierTimeout.current) clearTimeout(multiplierTimeout.current);
-    if (comboTimeout.current) clearTimeout(comboTimeout.current);
+    if (spawnInterval.current) {
+      clearInterval(spawnInterval.current);
+      spawnInterval.current = null;
+    }
+    if (timerInterval.current) {
+      clearInterval(timerInterval.current);
+      timerInterval.current = null;
+    }
+    if (freezeTimeout.current) {
+      clearTimeout(freezeTimeout.current);
+      freezeTimeout.current = null;
+    }
+    if (multiplierTimeout.current) {
+      clearTimeout(multiplierTimeout.current);
+      multiplierTimeout.current = null;
+    }
+    if (comboTimeout.current) {
+      clearTimeout(comboTimeout.current);
+      comboTimeout.current = null;
+    }
     
     orbTimeouts.current.forEach(timeout => clearTimeout(timeout));
     orbTimeouts.current.clear();
-  };
+  }, []);
 
-  const startGame = () => {
+  const startGame = useCallback(() => {
     console.log('Starting game, level:', levelId);
     gameEndedRef.current = false;
     
@@ -133,9 +150,9 @@ export default function GameScreen() {
         });
       }
     }, 1000);
-  };
+  }, [levelId, level.maxOrbs, level.orbSpawnRate]);
 
-  const createOrb = (): Orb => {
+  const createOrb = useCallback((): Orb => {
     const baseSize = 60;
     const sizeVariation = level.orbSizeVariation * 80;
     const orbSize = baseSize + (Math.random() * sizeVariation);
@@ -182,9 +199,9 @@ export default function GameScreen() {
       type: orbType,
       speed: level.orbSpeedMultiplier,
     };
-  };
+  }, [level.orbSizeVariation, level.specialOrbChance, level.orbSpeedMultiplier]);
 
-  const scheduleOrbRemoval = (orbId: string) => {
+  const scheduleOrbRemoval = useCallback((orbId: string) => {
     const baseLifetime = 3000;
     const lifetime = baseLifetime / (level.orbSpeedMultiplier || 1);
     
@@ -211,9 +228,9 @@ export default function GameScreen() {
     }, lifetime);
 
     orbTimeouts.current.set(orbId, timeout);
-  };
+  }, [level.orbSpeedMultiplier]);
 
-  const triggerScreenShake = () => {
+  const triggerScreenShake = useCallback(() => {
     shakeX.value = withSequence(
       withTiming(-10, { duration: 50 }),
       withTiming(10, { duration: 50 }),
@@ -228,9 +245,9 @@ export default function GameScreen() {
       withTiming(6, { duration: 50 }),
       withTiming(0, { duration: 50 })
     );
-  };
+  }, [shakeX, shakeY]);
 
-  const updateCombo = () => {
+  const updateCombo = useCallback(() => {
     const now = Date.now();
     const timeSinceLastTap = now - lastTapTime.current;
     
@@ -246,19 +263,22 @@ export default function GameScreen() {
     comboTimeout.current = setTimeout(() => {
       setCombo(0);
     }, 1500);
-  };
+  }, []);
 
-  const resetCombo = () => {
+  const resetCombo = useCallback(() => {
     setCombo(0);
-    if (comboTimeout.current) clearTimeout(comboTimeout.current);
-  };
+    if (comboTimeout.current) {
+      clearTimeout(comboTimeout.current);
+      comboTimeout.current = null;
+    }
+  }, []);
 
-  const getComboMultiplier = (comboCount: number): number => {
+  const getComboMultiplier = useCallback((comboCount: number): number => {
     if (comboCount >= 10) return 3;
     if (comboCount >= 5) return 2;
     if (comboCount >= 2) return 1.5;
     return 1;
-  };
+  }, []);
 
   const handleOrbPress = useCallback((orb: Orb) => {
     console.log('Orb pressed:', orb.type, orb.points);
@@ -334,9 +354,9 @@ export default function GameScreen() {
         },
       ]);
     }
-  }, [level.targetScore, combo]);
+  }, [level.targetScore, combo, triggerScreenShake, resetCombo, updateCombo, getComboMultiplier]);
 
-  const activateFreeze = () => {
+  const activateFreeze = useCallback(() => {
     console.log('Freeze activated');
     setGameState(prev => ({ ...prev, freezeActive: true }));
     
@@ -344,9 +364,9 @@ export default function GameScreen() {
     freezeTimeout.current = setTimeout(() => {
       setGameState(prev => ({ ...prev, freezeActive: false }));
     }, 5000);
-  };
+  }, []);
 
-  const activateMultiplier = () => {
+  const activateMultiplier = useCallback(() => {
     console.log('Multiplier activated');
     setGameState(prev => ({ ...prev, multiplier: 2 }));
     
@@ -354,9 +374,9 @@ export default function GameScreen() {
     multiplierTimeout.current = setTimeout(() => {
       setGameState(prev => ({ ...prev, multiplier: 1 }));
     }, 10000);
-  };
+  }, []);
 
-  const endGame = (won: boolean) => {
+  const endGame = useCallback((won: boolean) => {
     if (gameEndedRef.current) {
       console.log('Game already ended, skipping');
       return;
@@ -391,15 +411,15 @@ export default function GameScreen() {
         ]
       );
     }, 500);
-  };
+  }, [level.targetScore, levelId, router, cleanup]);
 
-  const handlePause = () => {
+  const handlePause = useCallback(() => {
     console.log('Game paused/resumed');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setGameState(prev => ({ ...prev, isPaused: !prev.isPaused }));
-  };
+  }, []);
 
-  const handleQuit = () => {
+  const handleQuit = useCallback(() => {
     Alert.alert(
       'Quit Game?',
       'Are you sure you want to quit?',
@@ -415,15 +435,15 @@ export default function GameScreen() {
         },
       ]
     );
-  };
+  }, [router, cleanup]);
 
-  const removeParticle = (id: string) => {
+  const removeParticle = useCallback((id: string) => {
     setParticles(prev => prev.filter(p => p.id !== id));
-  };
+  }, []);
 
-  const removeScorePopup = (id: string) => {
+  const removeScorePopup = useCallback((id: string) => {
     setScorePopups(prev => prev.filter(p => p.id !== id));
-  };
+  }, []);
 
   return (
     <View style={[styles.container, { backgroundColor: level.backgroundColor }]}>
