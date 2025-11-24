@@ -10,7 +10,7 @@ export const LEVELS: Level[] = [
     timeLimit: 60,
     orbSpawnRate: 1500,
     maxOrbs: 5,
-    specialOrbChance: 0.1,
+    specialOrbChance: 0.15,
     backgroundColor: '#E3F2FD',
   },
   {
@@ -21,7 +21,7 @@ export const LEVELS: Level[] = [
     timeLimit: 60,
     orbSpawnRate: 1200,
     maxOrbs: 7,
-    specialOrbChance: 0.15,
+    specialOrbChance: 0.2,
     backgroundColor: '#F3E5F5',
   },
   {
@@ -32,7 +32,7 @@ export const LEVELS: Level[] = [
     timeLimit: 60,
     orbSpawnRate: 1000,
     maxOrbs: 10,
-    specialOrbChance: 0.25,
+    specialOrbChance: 0.3,
     backgroundColor: '#FFF3E0',
   },
   {
@@ -43,7 +43,7 @@ export const LEVELS: Level[] = [
     timeLimit: 45,
     orbSpawnRate: 800,
     maxOrbs: 12,
-    specialOrbChance: 0.3,
+    specialOrbChance: 0.35,
     backgroundColor: '#E8F5E9',
   },
   {
@@ -54,13 +54,22 @@ export const LEVELS: Level[] = [
     timeLimit: 60,
     orbSpawnRate: 600,
     maxOrbs: 15,
-    specialOrbChance: 0.35,
+    specialOrbChance: 0.4,
     backgroundColor: '#FCE4EC',
   },
 ];
 
 export const ORB_COLORS = {
-  normal: ['#6200EE', '#03DAC5', '#FF4081', '#BB86FC', '#018786'],
+  normal: [
+    '#6200EE',
+    '#03DAC5',
+    '#FF4081',
+    '#BB86FC',
+    '#018786',
+    '#00BCD4',
+    '#FF6F00',
+    '#7C4DFF',
+  ],
   bonus: '#FFD700',
   bomb: '#FF0000',
   freeze: '#00BCD4',

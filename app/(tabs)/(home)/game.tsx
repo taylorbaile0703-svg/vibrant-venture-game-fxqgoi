@@ -3,8 +3,17 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, Dimensions, TouchableOpacity, Text, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { GameOrb } from '@/components/GameOrb';
 import { GameHUD } from '@/components/GameHUD';
+import { ParticleExplosion } from '@/components/ParticleExplosion';
+import { ScorePopup } from '@/components/ScorePopup';
+import { ComboIndicator } from '@/components/ComboIndicator';
 import { colors } from '@/styles/commonStyles';
 import { Orb, GameState } from '@/types/game';
 import { LEVELS, ORB_COLORS } from '@/data/levels';
@@ -13,6 +22,21 @@ const { width, height } = Dimensions.get('window');
 const GAME_AREA_TOP = 180;
 const GAME_AREA_BOTTOM = height - 150;
 
+interface Particle {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+}
+
+interface ScorePopupData {
+  id: string;
+  x: number;
+  y: number;
+  points: number;
+  multiplier: number;
+}
+
 export default function GameScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -20,6 +44,9 @@ export default function GameScreen() {
   const level = LEVELS.find(l => l.id === levelId) || LEVELS[0];
 
   const [orbs, setOrbs] = useState<Orb[]>([]);
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [scorePopups, setScorePopups] = useState<ScorePopupData[]>([]);
+  const [combo, setCombo] = useState(0);
   const [gameState, setGameState] = useState<GameState>({
     score: 0,
     level: levelId,
@@ -32,13 +59,27 @@ export default function GameScreen() {
   });
 
   const orbIdCounter = useRef(0);
+  const particleIdCounter = useRef(0);
+  const scorePopupIdCounter = useRef(0);
   const spawnInterval = useRef<NodeJS.Timeout | null>(null);
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
   const freezeTimeout = useRef<NodeJS.Timeout | null>(null);
   const multiplierTimeout = useRef<NodeJS.Timeout | null>(null);
+  const comboTimeout = useRef<NodeJS.Timeout | null>(null);
   const orbTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const gameStateRef = useRef(gameState);
   const gameEndedRef = useRef(false);
+  const lastTapTime = useRef(0);
+
+  // Screen shake animation
+  const shakeX = useSharedValue(0);
+  const shakeY = useSharedValue(0);
+
+  const shakeAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: shakeX.value }, { translateY: shakeY.value }],
+    };
+  });
 
   // Keep gameStateRef in sync with gameState
   useEffect(() => {
@@ -58,8 +99,8 @@ export default function GameScreen() {
     if (timerInterval.current) clearInterval(timerInterval.current);
     if (freezeTimeout.current) clearTimeout(freezeTimeout.current);
     if (multiplierTimeout.current) clearTimeout(multiplierTimeout.current);
+    if (comboTimeout.current) clearTimeout(comboTimeout.current);
     
-    // Clear all orb timeouts
     orbTimeouts.current.forEach(timeout => clearTimeout(timeout));
     orbTimeouts.current.clear();
   };
@@ -68,7 +109,6 @@ export default function GameScreen() {
     console.log('Starting game, level:', levelId);
     gameEndedRef.current = false;
     
-    // Spawn orbs interval
     spawnInterval.current = setInterval(() => {
       const currentState = gameStateRef.current;
       if (currentState.isPlaying && !currentState.isPaused && !currentState.freezeActive) {
@@ -83,7 +123,6 @@ export default function GameScreen() {
       }
     }, level.orbSpawnRate);
 
-    // Game timer interval
     timerInterval.current = setInterval(() => {
       const currentState = gameStateRef.current;
       if (currentState.isPlaying && !currentState.isPaused && !currentState.freezeActive) {
@@ -146,7 +185,6 @@ export default function GameScreen() {
         const orbStillExists = prev.some(o => o.id === orbId);
         if (orbStillExists) {
           const orb = prev.find(o => o.id === orbId);
-          // Only lose life if it's not a bomb (bombs don't penalize for missing)
           if (orb && orb.type !== 'bomb') {
             setGameState(prevState => {
               const newLives = prevState.lives - 1;
@@ -155,6 +193,8 @@ export default function GameScreen() {
               }
               return { ...prevState, lives: Math.max(0, newLives) };
             });
+            // Reset combo on missed orb
+            resetCombo();
           }
           return prev.filter(o => o.id !== orbId);
         }
@@ -166,21 +206,76 @@ export default function GameScreen() {
     orbTimeouts.current.set(orbId, timeout);
   };
 
+  const triggerScreenShake = () => {
+    shakeX.value = withSequence(
+      withTiming(-10, { duration: 50 }),
+      withTiming(10, { duration: 50 }),
+      withTiming(-8, { duration: 50 }),
+      withTiming(8, { duration: 50 }),
+      withTiming(0, { duration: 50 })
+    );
+    shakeY.value = withSequence(
+      withTiming(-8, { duration: 50 }),
+      withTiming(8, { duration: 50 }),
+      withTiming(-6, { duration: 50 }),
+      withTiming(6, { duration: 50 }),
+      withTiming(0, { duration: 50 })
+    );
+  };
+
+  const updateCombo = () => {
+    const now = Date.now();
+    const timeSinceLastTap = now - lastTapTime.current;
+    
+    if (timeSinceLastTap < 1000) {
+      setCombo(prev => prev + 1);
+    } else {
+      setCombo(1);
+    }
+    
+    lastTapTime.current = now;
+
+    if (comboTimeout.current) clearTimeout(comboTimeout.current);
+    comboTimeout.current = setTimeout(() => {
+      setCombo(0);
+    }, 1500);
+  };
+
+  const resetCombo = () => {
+    setCombo(0);
+    if (comboTimeout.current) clearTimeout(comboTimeout.current);
+  };
+
+  const getComboMultiplier = (comboCount: number): number => {
+    if (comboCount >= 10) return 3;
+    if (comboCount >= 5) return 2;
+    if (comboCount >= 2) return 1.5;
+    return 1;
+  };
+
   const handleOrbPress = useCallback((orb: Orb) => {
     console.log('Orb pressed:', orb.type, orb.points);
     
-    // Clear the timeout for this orb
     const timeout = orbTimeouts.current.get(orb.id);
     if (timeout) {
       clearTimeout(timeout);
       orbTimeouts.current.delete(orb.id);
     }
 
-    // Remove orb from screen
     setOrbs(prev => prev.filter(o => o.id !== orb.id));
+
+    // Create particle explosion
+    const particleId = `particle-${particleIdCounter.current++}`;
+    setParticles(prev => [
+      ...prev,
+      { id: particleId, x: orb.x + orb.size / 2, y: orb.y + orb.size / 2, color: orb.color },
+    ]);
 
     if (orb.type === 'bomb') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      triggerScreenShake();
+      resetCombo();
+      
       setGameState(prev => {
         const newLives = prev.lives - 1;
         if (newLives <= 0 && !gameEndedRef.current) {
@@ -188,8 +283,22 @@ export default function GameScreen() {
         }
         return { ...prev, lives: Math.max(0, newLives) };
       });
+
+      // Show negative score popup
+      const popupId = `popup-${scorePopupIdCounter.current++}`;
+      setScorePopups(prev => [
+        ...prev,
+        {
+          id: popupId,
+          x: orb.x + orb.size / 2 - 30,
+          y: orb.y,
+          points: orb.points,
+          multiplier: 1,
+        },
+      ]);
     } else {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      updateCombo();
       
       if (orb.type === 'freeze') {
         activateFreeze();
@@ -197,15 +306,31 @@ export default function GameScreen() {
         activateMultiplier();
       }
 
+      const comboMult = getComboMultiplier(combo + 1);
+      const totalMultiplier = gameStateRef.current.multiplier * comboMult;
+
       setGameState(prev => {
-        const newScore = prev.score + (orb.points * prev.multiplier);
+        const newScore = prev.score + Math.floor(orb.points * totalMultiplier);
         if (newScore >= level.targetScore && !gameEndedRef.current) {
           endGame(true);
         }
         return { ...prev, score: newScore };
       });
+
+      // Show score popup
+      const popupId = `popup-${scorePopupIdCounter.current++}`;
+      setScorePopups(prev => [
+        ...prev,
+        {
+          id: popupId,
+          x: orb.x + orb.size / 2 - 30,
+          y: orb.y,
+          points: orb.points,
+          multiplier: totalMultiplier,
+        },
+      ]);
     }
-  }, [level.targetScore]);
+  }, [level.targetScore, combo]);
 
   const activateFreeze = () => {
     console.log('Freeze activated');
@@ -243,8 +368,8 @@ export default function GameScreen() {
       Alert.alert(
         won ? '🎉 Level Complete!' : '😢 Game Over',
         won 
-          ? `You scored ${gameStateRef.current.score} points!\nTarget: ${level.targetScore}`
-          : `You scored ${gameStateRef.current.score} points.\nBetter luck next time!`,
+          ? `Amazing! You scored ${gameStateRef.current.score} points!\nTarget: ${level.targetScore}`
+          : `You scored ${gameStateRef.current.score} points.\nKeep practicing!`,
         [
           {
             text: 'Back to Menu',
@@ -266,6 +391,7 @@ export default function GameScreen() {
 
   const handlePause = () => {
     console.log('Game paused/resumed');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setGameState(prev => ({ ...prev, isPaused: !prev.isPaused }));
   };
 
@@ -287,40 +413,77 @@ export default function GameScreen() {
     );
   };
 
+  const removeParticle = (id: string) => {
+    setParticles(prev => prev.filter(p => p.id !== id));
+  };
+
+  const removeScorePopup = (id: string) => {
+    setScorePopups(prev => prev.filter(p => p.id !== id));
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: level.backgroundColor }]}>
-      <GameHUD
-        gameState={gameState}
-        levelName={level.name}
-        targetScore={level.targetScore}
-      />
+      <Animated.View style={[styles.gameContainer, shakeAnimatedStyle]}>
+        <GameHUD
+          gameState={gameState}
+          levelName={level.name}
+          targetScore={level.targetScore}
+        />
 
-      <View style={styles.gameArea}>
-        {orbs.map((orb) => (
-          <GameOrb key={orb.id} orb={orb} onPress={handleOrbPress} />
-        ))}
-      </View>
+        <ComboIndicator combo={combo} />
 
-      {gameState.isPaused && (
-        <View style={styles.pauseOverlay}>
-          <Text style={styles.pauseText}>PAUSED</Text>
+        <View style={styles.gameArea}>
+          {orbs.map((orb) => (
+            <GameOrb key={orb.id} orb={orb} onPress={handleOrbPress} />
+          ))}
         </View>
-      )}
 
-      <View style={styles.controls}>
-        <TouchableOpacity style={styles.controlButton} onPress={handlePause}>
-          <Text style={styles.controlButtonText}>{gameState.isPaused ? '▶️' : '⏸️'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.controlButton} onPress={handleQuit}>
-          <Text style={styles.controlButtonText}>🏠</Text>
-        </TouchableOpacity>
-      </View>
+        {particles.map((particle) => (
+          <ParticleExplosion
+            key={particle.id}
+            x={particle.x}
+            y={particle.y}
+            color={particle.color}
+            onComplete={() => removeParticle(particle.id)}
+          />
+        ))}
+
+        {scorePopups.map((popup) => (
+          <ScorePopup
+            key={popup.id}
+            x={popup.x}
+            y={popup.y}
+            points={popup.points}
+            multiplier={popup.multiplier}
+            onComplete={() => removeScorePopup(popup.id)}
+          />
+        ))}
+
+        {gameState.isPaused && (
+          <View style={styles.pauseOverlay}>
+            <Text style={styles.pauseText}>PAUSED</Text>
+            <Text style={styles.pauseSubtext}>Tap ▶️ to continue</Text>
+          </View>
+        )}
+
+        <View style={styles.controls}>
+          <TouchableOpacity style={styles.controlButton} onPress={handlePause}>
+            <Text style={styles.controlButtonText}>{gameState.isPaused ? '▶️' : '⏸️'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.controlButton} onPress={handleQuit}>
+            <Text style={styles.controlButtonText}>🏠</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  gameContainer: {
     flex: 1,
   },
   gameArea: {
@@ -333,15 +496,24 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 200,
   },
   pauseText: {
-    fontSize: 48,
+    fontSize: 56,
     fontWeight: '900',
     color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 3, height: 3 },
+    textShadowRadius: 6,
+  },
+  pauseSubtext: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#CCCCCC',
+    marginTop: 16,
   },
   controls: {
     position: 'absolute',
@@ -355,15 +527,17 @@ const styles = StyleSheet.create({
   },
   controlButton: {
     backgroundColor: colors.card,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
-    elevation: 5,
+    boxShadow: '0px 6px 12px rgba(0, 0, 0, 0.3)',
+    elevation: 8,
+    borderWidth: 3,
+    borderColor: colors.primary,
   },
   controlButtonText: {
-    fontSize: 28,
+    fontSize: 32,
   },
 });

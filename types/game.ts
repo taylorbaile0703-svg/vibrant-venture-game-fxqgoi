@@ -38,3 +38,18 @@ export interface PowerUp {
   duration: number;
   active: boolean;
 }
+
+export interface Particle {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+}
+
+export interface ScorePopup {
+  id: string;
+  x: number;
+  y: number;
+  points: number;
+  multiplier: number;
+}
