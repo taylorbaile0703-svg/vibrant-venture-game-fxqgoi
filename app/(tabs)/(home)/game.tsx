@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, Dimensions, TouchableOpacity, Text, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -36,6 +36,14 @@ export default function GameScreen() {
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
   const freezeTimeout = useRef<NodeJS.Timeout | null>(null);
   const multiplierTimeout = useRef<NodeJS.Timeout | null>(null);
+  const orbTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const gameStateRef = useRef(gameState);
+  const gameEndedRef = useRef(false);
+
+  // Keep gameStateRef in sync with gameState
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
   useEffect(() => {
     startGame();
@@ -45,33 +53,52 @@ export default function GameScreen() {
   }, []);
 
   const cleanup = () => {
+    console.log('Cleaning up game resources');
     if (spawnInterval.current) clearInterval(spawnInterval.current);
     if (timerInterval.current) clearInterval(timerInterval.current);
     if (freezeTimeout.current) clearTimeout(freezeTimeout.current);
     if (multiplierTimeout.current) clearTimeout(multiplierTimeout.current);
+    
+    // Clear all orb timeouts
+    orbTimeouts.current.forEach(timeout => clearTimeout(timeout));
+    orbTimeouts.current.clear();
   };
 
   const startGame = () => {
     console.log('Starting game, level:', levelId);
+    gameEndedRef.current = false;
     
+    // Spawn orbs interval
     spawnInterval.current = setInterval(() => {
-      if (gameState.isPlaying && !gameState.isPaused && orbs.length < level.maxOrbs) {
-        spawnOrb();
+      const currentState = gameStateRef.current;
+      if (currentState.isPlaying && !currentState.isPaused && !currentState.freezeActive) {
+        setOrbs(currentOrbs => {
+          if (currentOrbs.length < level.maxOrbs) {
+            const newOrb = createOrb();
+            scheduleOrbRemoval(newOrb.id);
+            return [...currentOrbs, newOrb];
+          }
+          return currentOrbs;
+        });
       }
     }, level.orbSpawnRate);
 
+    // Game timer interval
     timerInterval.current = setInterval(() => {
-      setGameState(prev => {
-        if (prev.timeRemaining <= 1) {
-          endGame(false);
-          return prev;
-        }
-        return { ...prev, timeRemaining: prev.timeRemaining - 1 };
-      });
+      const currentState = gameStateRef.current;
+      if (currentState.isPlaying && !currentState.isPaused && !currentState.freezeActive) {
+        setGameState(prev => {
+          if (prev.timeRemaining <= 1) {
+            endGame(false);
+            return prev;
+          }
+          return { ...prev, timeRemaining: prev.timeRemaining - 1 };
+        });
+      }
     }, 1000);
   };
 
-  const spawnOrb = () => {
+  const createOrb = (): Orb => {
     const orbSize = 60 + Math.random() * 40;
     const x = Math.random() * (width - orbSize - 40) + 20;
     const y = GAME_AREA_TOP + Math.random() * (GAME_AREA_BOTTOM - GAME_AREA_TOP - orbSize);
@@ -102,7 +129,7 @@ export default function GameScreen() {
       }
     }
 
-    const newOrb: Orb = {
+    return {
       id: `orb-${orbIdCounter.current++}`,
       x,
       y,
@@ -111,36 +138,55 @@ export default function GameScreen() {
       points,
       type: orbType,
     };
-
-    setOrbs(prev => [...prev, newOrb]);
-
-    setTimeout(() => {
-      setOrbs(prev => prev.filter(o => o.id !== newOrb.id));
-      if (orbType !== 'bomb') {
-        setGameState(prev => {
-          const newLives = prev.lives - 1;
-          if (newLives <= 0) {
-            endGame(false);
-          }
-          return { ...prev, lives: newLives };
-        });
-      }
-    }, 3000);
   };
 
-  const handleOrbPress = (orb: Orb) => {
+  const scheduleOrbRemoval = (orbId: string) => {
+    const timeout = setTimeout(() => {
+      setOrbs(prev => {
+        const orbStillExists = prev.some(o => o.id === orbId);
+        if (orbStillExists) {
+          const orb = prev.find(o => o.id === orbId);
+          // Only lose life if it's not a bomb (bombs don't penalize for missing)
+          if (orb && orb.type !== 'bomb') {
+            setGameState(prevState => {
+              const newLives = prevState.lives - 1;
+              if (newLives <= 0 && !gameEndedRef.current) {
+                endGame(false);
+              }
+              return { ...prevState, lives: Math.max(0, newLives) };
+            });
+          }
+          return prev.filter(o => o.id !== orbId);
+        }
+        return prev;
+      });
+      orbTimeouts.current.delete(orbId);
+    }, 3000);
+
+    orbTimeouts.current.set(orbId, timeout);
+  };
+
+  const handleOrbPress = useCallback((orb: Orb) => {
     console.log('Orb pressed:', orb.type, orb.points);
     
+    // Clear the timeout for this orb
+    const timeout = orbTimeouts.current.get(orb.id);
+    if (timeout) {
+      clearTimeout(timeout);
+      orbTimeouts.current.delete(orb.id);
+    }
+
+    // Remove orb from screen
     setOrbs(prev => prev.filter(o => o.id !== orb.id));
 
     if (orb.type === 'bomb') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setGameState(prev => {
         const newLives = prev.lives - 1;
-        if (newLives <= 0) {
+        if (newLives <= 0 && !gameEndedRef.current) {
           endGame(false);
         }
-        return { ...prev, lives: newLives };
+        return { ...prev, lives: Math.max(0, newLives) };
       });
     } else {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -153,13 +199,13 @@ export default function GameScreen() {
 
       setGameState(prev => {
         const newScore = prev.score + (orb.points * prev.multiplier);
-        if (newScore >= level.targetScore) {
+        if (newScore >= level.targetScore && !gameEndedRef.current) {
           endGame(true);
         }
         return { ...prev, score: newScore };
       });
     }
-  };
+  }, [level.targetScore]);
 
   const activateFreeze = () => {
     console.log('Freeze activated');
@@ -182,7 +228,14 @@ export default function GameScreen() {
   };
 
   const endGame = (won: boolean) => {
+    if (gameEndedRef.current) {
+      console.log('Game already ended, skipping');
+      return;
+    }
+    
+    gameEndedRef.current = true;
     console.log('Game ended, won:', won);
+    
     cleanup();
     setGameState(prev => ({ ...prev, isPlaying: false }));
     
@@ -190,8 +243,8 @@ export default function GameScreen() {
       Alert.alert(
         won ? '🎉 Level Complete!' : '😢 Game Over',
         won 
-          ? `You scored ${gameState.score} points!\nTarget: ${level.targetScore}`
-          : `You scored ${gameState.score} points.\nBetter luck next time!`,
+          ? `You scored ${gameStateRef.current.score} points!\nTarget: ${level.targetScore}`
+          : `You scored ${gameStateRef.current.score} points.\nBetter luck next time!`,
         [
           {
             text: 'Back to Menu',
@@ -212,7 +265,7 @@ export default function GameScreen() {
   };
 
   const handlePause = () => {
-    console.log('Game paused');
+    console.log('Game paused/resumed');
     setGameState(prev => ({ ...prev, isPaused: !prev.isPaused }));
   };
 
@@ -222,7 +275,14 @@ export default function GameScreen() {
       'Are you sure you want to quit?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Quit', onPress: () => router.back(), style: 'destructive' },
+        { 
+          text: 'Quit', 
+          onPress: () => {
+            cleanup();
+            router.back();
+          }, 
+          style: 'destructive' 
+        },
       ]
     );
   };

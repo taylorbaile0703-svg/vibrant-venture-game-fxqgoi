@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { TouchableOpacity, StyleSheet, Text } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
   withSequence,
   Easing,
+  runOnJS,
 } from 'react-native-reanimated';
 import { Orb } from '@/types/game';
 
@@ -19,6 +20,7 @@ interface GameOrbProps {
 export const GameOrb: React.FC<GameOrbProps> = ({ orb, onPress }) => {
   const scale = useSharedValue(0);
   const opacity = useSharedValue(1);
+  const hasBeenPressed = useRef(false);
 
   useEffect(() => {
     scale.value = withSpring(1, {
@@ -35,15 +37,20 @@ export const GameOrb: React.FC<GameOrbProps> = ({ orb, onPress }) => {
   });
 
   const handlePress = () => {
+    if (hasBeenPressed.current) {
+      return;
+    }
+    hasBeenPressed.current = true;
+
     scale.value = withSequence(
       withTiming(1.2, { duration: 100, easing: Easing.out(Easing.ease) }),
-      withTiming(0, { duration: 200, easing: Easing.in(Easing.ease) })
+      withTiming(0, { duration: 200, easing: Easing.in(Easing.ease) }, (finished) => {
+        if (finished) {
+          runOnJS(onPress)(orb);
+        }
+      })
     );
     opacity.value = withTiming(0, { duration: 200 });
-    
-    setTimeout(() => {
-      onPress(orb);
-    }, 100);
   };
 
   const getOrbIcon = () => {
@@ -88,7 +95,7 @@ export const GameOrb: React.FC<GameOrbProps> = ({ orb, onPress }) => {
         activeOpacity={0.8}
       >
         {orb.type !== 'normal' && (
-          <Text style={styles.orbIcon}>{getOrbIcon()}</Text>
+          <Text style={[styles.orbIcon, { fontSize: orb.size * 0.4 }]}>{getOrbIcon()}</Text>
         )}
       </TouchableOpacity>
     </Animated.View>
