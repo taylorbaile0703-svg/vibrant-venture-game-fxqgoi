@@ -3,12 +3,12 @@ import React from 'react';
 import { Stack } from 'expo-router';
 
 export default function TabLayout() {
-  // Simplified layout - no tabs, just stack navigation
+  // iOS-specific simplified layout - no tabs, just stack navigation
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: 'none',
+        animation: 'default',
       }}
     >
       <Stack.Screen name="(home)" />
