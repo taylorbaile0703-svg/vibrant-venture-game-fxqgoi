@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -10,6 +10,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { colors } from '@/styles/commonStyles';
 import { GameState } from '@/types/game';
+
+const { width, height } = Dimensions.get('window');
 
 interface GameHUDProps {
   gameState: GameState;
@@ -133,9 +135,9 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingTop: Platform.OS === 'android' ? 60 : 50,
+    paddingHorizontal: Math.min(width * 0.04, 16),
+    paddingBottom: height * 0.02,
     backgroundColor: 'rgba(255, 255, 255, 0.98)',
     boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.15)',
     elevation: 5,
@@ -144,14 +146,14 @@ const styles = StyleSheet.create({
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: height * 0.015,
   },
   statBox: {
     alignItems: 'center',
     flex: 1,
   },
   label: {
-    fontSize: 12,
+    fontSize: Math.min(width * 0.03, 12),
     color: colors.textSecondary,
     fontWeight: '700',
     marginBottom: 4,
@@ -159,7 +161,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   value: {
-    fontSize: 28,
+    fontSize: Math.min(width * 0.07, 28),
     color: colors.primary,
     fontWeight: '900',
   },
@@ -167,7 +169,7 @@ const styles = StyleSheet.create({
     color: '#FF0000',
   },
   sublabel: {
-    fontSize: 10,
+    fontSize: Math.min(width * 0.025, 10),
     color: colors.textSecondary,
     marginTop: 2,
     fontWeight: '600',
@@ -195,7 +197,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heart: {
-    fontSize: 22,
+    fontSize: Math.min(width * 0.055, 22),
     marginLeft: 4,
   },
   lostHeart: {
@@ -209,27 +211,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.accent,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: Math.min(width * 0.03, 12),
+    paddingVertical: Math.min(height * 0.008, 6),
     borderRadius: 20,
     boxShadow: '0px 2px 6px rgba(255, 64, 129, 0.4)',
     elevation: 4,
   },
   badgeIcon: {
-    fontSize: 16,
+    fontSize: Math.min(width * 0.04, 16),
     marginRight: 4,
   },
   multiplierText: {
     color: '#FFFFFF',
     fontWeight: '900',
-    fontSize: 14,
+    fontSize: Math.min(width * 0.035, 14),
   },
   powerUpBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.secondary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: Math.min(width * 0.03, 12),
+    paddingVertical: Math.min(height * 0.008, 6),
     borderRadius: 20,
     boxShadow: '0px 2px 6px rgba(3, 218, 197, 0.4)',
     elevation: 4,
@@ -237,6 +239,6 @@ const styles = StyleSheet.create({
   powerUpText: {
     color: '#FFFFFF',
     fontWeight: '900',
-    fontSize: 12,
+    fontSize: Math.min(width * 0.03, 12),
   },
 });

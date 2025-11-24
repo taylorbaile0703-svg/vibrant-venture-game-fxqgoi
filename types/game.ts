@@ -20,6 +20,8 @@ export interface Level {
   maxOrbs: number;
   specialOrbChance: number;
   backgroundColor: string;
+  orbSizeVariation: number;
+  orbSpeedMultiplier: number;
 }
 
 export interface GameState {

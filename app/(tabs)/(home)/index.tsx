@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, {
   useSharedValue,
@@ -14,7 +14,7 @@ import { colors } from '@/styles/commonStyles';
 import { LevelCard } from '@/components/LevelCard';
 import { LEVELS } from '@/data/levels';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -117,33 +117,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 120,
+    paddingTop: Platform.OS === 'android' ? 60 : 60,
+    paddingHorizontal: Math.min(width * 0.05, 20),
+    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: height * 0.03,
   },
   title: {
-    fontSize: 42,
+    fontSize: Math.min(width * 0.1, 42),
     fontWeight: '900',
     color: colors.primary,
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: Math.min(width * 0.045, 18),
     color: colors.textSecondary,
     textAlign: 'center',
   },
   buttonContainer: {
-    marginBottom: 30,
+    marginBottom: height * 0.03,
   },
   tutorialButton: {
     backgroundColor: colors.secondary,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    paddingVertical: height * 0.02,
+    paddingHorizontal: width * 0.08,
     borderRadius: 12,
     alignItems: 'center',
     boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.15)',
@@ -151,14 +151,14 @@ const styles = StyleSheet.create({
   },
   tutorialButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: Math.min(width * 0.045, 18),
     fontWeight: '800',
   },
   levelsContainer: {
-    marginBottom: 30,
+    marginBottom: height * 0.03,
   },
   sectionTitle: {
-    fontSize: 24,
+    fontSize: Math.min(width * 0.06, 24),
     fontWeight: '800',
     color: colors.text,
     marginBottom: 16,
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   footerText: {
-    fontSize: 14,
+    fontSize: Math.min(width * 0.035, 14),
     color: colors.textSecondary,
     textAlign: 'center',
   },

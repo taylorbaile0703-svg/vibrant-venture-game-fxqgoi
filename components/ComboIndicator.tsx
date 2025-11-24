@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,6 +8,8 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+
+const { width, height } = Dimensions.get('window');
 
 interface ComboIndicatorProps {
   combo: number;
@@ -54,11 +56,11 @@ export const ComboIndicator: React.FC<ComboIndicatorProps> = ({ combo }) => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 140,
+    top: Platform.OS === 'android' ? height * 0.18 : height * 0.17,
     alignSelf: 'center',
     backgroundColor: 'rgba(255, 69, 0, 0.95)',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: Math.min(width * 0.06, 24),
+    paddingVertical: Math.min(height * 0.015, 12),
     borderRadius: 20,
     borderWidth: 3,
     borderColor: '#FFD700',
@@ -67,14 +69,14 @@ const styles = StyleSheet.create({
     zIndex: 150,
   },
   comboText: {
-    fontSize: 16,
+    fontSize: Math.min(width * 0.04, 16),
     fontWeight: '800',
     color: '#FFFFFF',
     textAlign: 'center',
     letterSpacing: 2,
   },
   comboNumber: {
-    fontSize: 32,
+    fontSize: Math.min(width * 0.08, 32),
     fontWeight: '900',
     color: '#FFD700',
     textAlign: 'center',
@@ -88,7 +90,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   flame: {
-    fontSize: 20,
+    fontSize: Math.min(width * 0.05, 20),
     marginHorizontal: 2,
   },
 });

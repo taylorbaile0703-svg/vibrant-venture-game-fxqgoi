@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, Dimensions, TouchableOpacity, Text, Alert } from 'react-native';
+import { View, StyleSheet, Dimensions, TouchableOpacity, Text, Alert, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -19,8 +19,8 @@ import { Orb, GameState } from '@/types/game';
 import { LEVELS, ORB_COLORS } from '@/data/levels';
 
 const { width, height } = Dimensions.get('window');
-const GAME_AREA_TOP = 180;
-const GAME_AREA_BOTTOM = height - 150;
+const GAME_AREA_TOP = Platform.OS === 'android' ? 200 : 180;
+const GAME_AREA_BOTTOM = height - 100;
 
 interface Particle {
   id: string;
@@ -71,7 +71,6 @@ export default function GameScreen() {
   const gameEndedRef = useRef(false);
   const lastTapTime = useRef(0);
 
-  // Screen shake animation
   const shakeX = useSharedValue(0);
   const shakeY = useSharedValue(0);
 
@@ -81,7 +80,6 @@ export default function GameScreen() {
     };
   });
 
-  // Keep gameStateRef in sync with gameState
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
@@ -138,9 +136,15 @@ export default function GameScreen() {
   };
 
   const createOrb = (): Orb => {
-    const orbSize = 60 + Math.random() * 40;
-    const x = Math.random() * (width - orbSize - 40) + 20;
-    const y = GAME_AREA_TOP + Math.random() * (GAME_AREA_BOTTOM - GAME_AREA_TOP - orbSize);
+    const baseSize = 60;
+    const sizeVariation = level.orbSizeVariation * 80;
+    const orbSize = baseSize + (Math.random() * sizeVariation);
+    
+    const safeWidth = width - orbSize - 40;
+    const safeHeight = GAME_AREA_BOTTOM - GAME_AREA_TOP - orbSize;
+    
+    const x = Math.max(20, Math.min(Math.random() * safeWidth + 20, width - orbSize - 20));
+    const y = Math.max(GAME_AREA_TOP, Math.min(GAME_AREA_TOP + Math.random() * safeHeight, GAME_AREA_BOTTOM - orbSize));
 
     const rand = Math.random();
     let orbType: Orb['type'] = 'normal';
@@ -176,10 +180,14 @@ export default function GameScreen() {
       size: orbSize,
       points,
       type: orbType,
+      speed: level.orbSpeedMultiplier,
     };
   };
 
   const scheduleOrbRemoval = (orbId: string) => {
+    const baseLifetime = 3000;
+    const lifetime = baseLifetime / (level.orbSpeedMultiplier || 1);
+    
     const timeout = setTimeout(() => {
       setOrbs(prev => {
         const orbStillExists = prev.some(o => o.id === orbId);
@@ -193,7 +201,6 @@ export default function GameScreen() {
               }
               return { ...prevState, lives: Math.max(0, newLives) };
             });
-            // Reset combo on missed orb
             resetCombo();
           }
           return prev.filter(o => o.id !== orbId);
@@ -201,7 +208,7 @@ export default function GameScreen() {
         return prev;
       });
       orbTimeouts.current.delete(orbId);
-    }, 3000);
+    }, lifetime);
 
     orbTimeouts.current.set(orbId, timeout);
   };
@@ -264,7 +271,6 @@ export default function GameScreen() {
 
     setOrbs(prev => prev.filter(o => o.id !== orb.id));
 
-    // Create particle explosion
     const particleId = `particle-${particleIdCounter.current++}`;
     setParticles(prev => [
       ...prev,
@@ -284,7 +290,6 @@ export default function GameScreen() {
         return { ...prev, lives: Math.max(0, newLives) };
       });
 
-      // Show negative score popup
       const popupId = `popup-${scorePopupIdCounter.current++}`;
       setScorePopups(prev => [
         ...prev,
@@ -317,7 +322,6 @@ export default function GameScreen() {
         return { ...prev, score: newScore };
       });
 
-      // Show score popup
       const popupId = `popup-${scorePopupIdCounter.current++}`;
       setScorePopups(prev => [
         ...prev,
@@ -502,7 +506,7 @@ const styles = StyleSheet.create({
     zIndex: 200,
   },
   pauseText: {
-    fontSize: 56,
+    fontSize: Math.min(width * 0.14, 56),
     fontWeight: '900',
     color: '#FFFFFF',
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
@@ -510,14 +514,14 @@ const styles = StyleSheet.create({
     textShadowRadius: 6,
   },
   pauseSubtext: {
-    fontSize: 18,
+    fontSize: Math.min(width * 0.045, 18),
     fontWeight: '600',
     color: '#CCCCCC',
     marginTop: 16,
   },
   controls: {
     position: 'absolute',
-    bottom: 100,
+    bottom: 40,
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -527,9 +531,9 @@ const styles = StyleSheet.create({
   },
   controlButton: {
     backgroundColor: colors.card,
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: Math.min(width * 0.18, 70),
+    height: Math.min(width * 0.18, 70),
+    borderRadius: Math.min(width * 0.09, 35),
     justifyContent: 'center',
     alignItems: 'center',
     boxShadow: '0px 6px 12px rgba(0, 0, 0, 0.3)',
@@ -538,6 +542,6 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   controlButtonText: {
-    fontSize: 32,
+    fontSize: Math.min(width * 0.08, 32),
   },
 });
