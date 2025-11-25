@@ -79,6 +79,7 @@ export default function GameScreen() {
   const gameStateRef = useRef(gameState);
   const gameEndedRef = useRef(false);
   const lastTapTime = useRef(0);
+  const isNavigatingRef = useRef(false);
 
   const shakeX = useSharedValue(0);
   const shakeY = useSharedValue(0);
@@ -89,60 +90,7 @@ export default function GameScreen() {
     };
   });
 
-  // Reset game state when level changes
-  useEffect(() => {
-    console.log('Level changed to:', levelId);
-    cleanup();
-    setShowPreview(true);
-    setOrbs([]);
-    setParticles([]);
-    setScorePopups([]);
-    setCombo(0);
-    setGameState({
-      score: 0,
-      level: levelId,
-      lives: 3,
-      timeRemaining: level.timeLimit,
-      multiplier: 1,
-      isPlaying: false,
-      isPaused: false,
-      freezeActive: false,
-    });
-    gameEndedRef.current = false;
-    orbIdCounter.current = 0;
-    particleIdCounter.current = 0;
-    scorePopupIdCounter.current = 0;
-    lastTapTime.current = 0;
-  }, [levelId, level.timeLimit]);
-
-  useEffect(() => {
-    const subscription = Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
-      console.log('Dimensions changed:', window.width, 'x', window.height);
-      setDimensions({
-        width: window.width,
-        height: window.height,
-        gameAreaTop: 210,
-        gameAreaBottom: window.height - 100,
-      });
-    });
-
-    return () => {
-      subscription?.remove();
-    };
-  }, []);
-
-  useEffect(() => {
-    gameStateRef.current = gameState;
-  }, [gameState]);
-
-  useEffect(() => {
-    console.log('Game component mounted');
-    return () => {
-      console.log('Game component unmounting, cleaning up');
-      cleanup();
-    };
-  }, []);
-
+  // Cleanup function
   const cleanup = useCallback(() => {
     console.log('Cleaning up game resources');
     if (spawnInterval.current) {
@@ -170,11 +118,67 @@ export default function GameScreen() {
     orbTimeouts.current.clear();
   }, []);
 
+  // Reset game state when level changes
+  useEffect(() => {
+    console.log('Level changed to:', levelId);
+    cleanup();
+    setShowPreview(true);
+    setOrbs([]);
+    setParticles([]);
+    setScorePopups([]);
+    setCombo(0);
+    setGameState({
+      score: 0,
+      level: levelId,
+      lives: 3,
+      timeRemaining: level.timeLimit,
+      multiplier: 1,
+      isPlaying: false,
+      isPaused: false,
+      freezeActive: false,
+    });
+    gameEndedRef.current = false;
+    isNavigatingRef.current = false;
+    orbIdCounter.current = 0;
+    particleIdCounter.current = 0;
+    scorePopupIdCounter.current = 0;
+    lastTapTime.current = 0;
+  }, [levelId, level.timeLimit, cleanup]);
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
+      console.log('Dimensions changed:', window.width, 'x', window.height);
+      setDimensions({
+        width: window.width,
+        height: window.height,
+        gameAreaTop: 210,
+        gameAreaBottom: window.height - 100,
+      });
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+
+  useEffect(() => {
+    console.log('Game component mounted');
+    return () => {
+      console.log('Game component unmounting, cleaning up');
+      cleanup();
+    };
+  }, [cleanup]);
+
   const handleStartLevel = useCallback(() => {
     console.log('Starting level:', levelId);
     setShowPreview(false);
     setGameState(prev => ({ ...prev, isPlaying: true }));
     gameEndedRef.current = false;
+    isNavigatingRef.current = false;
     startGame();
   }, [levelId]);
 
@@ -434,51 +438,68 @@ export default function GameScreen() {
   }, []);
 
   const endGame = useCallback(async (won: boolean) => {
-    if (gameEndedRef.current) {
-      console.log('Game already ended, skipping');
+    if (gameEndedRef.current || isNavigatingRef.current) {
+      console.log('Game already ended or navigating, skipping');
       return;
     }
     
     gameEndedRef.current = true;
-    console.log('Game ended, won:', won);
+    console.log('Game ended, won:', won, 'score:', gameStateRef.current.score);
     
     cleanup();
     setGameState(prev => ({ ...prev, isPlaying: false }));
     
-    if (won) {
-      // Save high score
-      await updateHighScore(levelId, gameStateRef.current.score);
-      
-      // Unlock next level
-      const nextLevelId = levelId + 1;
-      const nextLevel = LEVELS.find(l => l.id === nextLevelId);
-      
-      if (nextLevel) {
-        console.log('Unlocking next level:', nextLevelId);
-        await unlockLevel(nextLevelId);
-      }
-    }
-    
-    setTimeout(() => {
+    try {
       if (won) {
+        // Save high score
+        await updateHighScore(levelId, gameStateRef.current.score);
+        console.log('High score saved');
+        
+        // Unlock next level
         const nextLevelId = levelId + 1;
         const nextLevel = LEVELS.find(l => l.id === nextLevelId);
         
         if (nextLevel) {
-          console.log('Automatically navigating to next level:', nextLevelId);
-          router.replace({
-            pathname: '/(tabs)/(home)/game',
-            params: { levelId: nextLevelId.toString() },
-          });
+          console.log('Unlocking next level:', nextLevelId);
+          await unlockLevel(nextLevelId);
+        }
+      }
+      
+      // Wait a bit before navigating
+      setTimeout(() => {
+        if (isNavigatingRef.current) {
+          console.log('Already navigating, skipping');
+          return;
+        }
+        
+        isNavigatingRef.current = true;
+        
+        if (won) {
+          const nextLevelId = levelId + 1;
+          const nextLevel = LEVELS.find(l => l.id === nextLevelId);
+          
+          if (nextLevel) {
+            console.log('Automatically navigating to next level:', nextLevelId);
+            router.replace(`/(tabs)/(home)/game?levelId=${nextLevelId}`);
+          } else {
+            console.log('All levels completed! Returning to home');
+            router.replace('/(tabs)/(home)');
+          }
         } else {
-          console.log('All levels completed! Returning to home');
+          console.log('Game over, returning to home');
           router.replace('/(tabs)/(home)');
         }
-      } else {
-        console.log('Game over, returning to home');
-        router.replace('/(tabs)/(home)');
-      }
-    }, 1500);
+      }, 1500);
+    } catch (error) {
+      console.error('Error in endGame:', error);
+      // Still navigate even if there's an error
+      setTimeout(() => {
+        if (!isNavigatingRef.current) {
+          isNavigatingRef.current = true;
+          router.replace('/(tabs)/(home)');
+        }
+      }, 1500);
+    }
   }, [levelId, router, cleanup]);
 
   const handlePause = useCallback(() => {
@@ -489,6 +510,11 @@ export default function GameScreen() {
 
   const handleQuit = useCallback(() => {
     console.log('Quitting game, returning to home');
+    if (isNavigatingRef.current) {
+      console.log('Already navigating, skipping');
+      return;
+    }
+    isNavigatingRef.current = true;
     cleanup();
     router.replace('/(tabs)/(home)');
   }, [router, cleanup]);
