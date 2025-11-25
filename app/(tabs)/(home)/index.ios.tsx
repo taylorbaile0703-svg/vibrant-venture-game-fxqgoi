@@ -13,11 +13,13 @@ import Animated, {
 import { colors } from '@/styles/commonStyles';
 import { LevelCard } from '@/components/LevelCard';
 import { LEVELS } from '@/data/levels';
+import { loadLevelProgress } from '@/utils/levelStorage';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [highScores, setHighScores] = useState<{ [key: number]: number }>({});
   const [unlockedLevels, setUnlockedLevels] = useState<number[]>([1]);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Use state for dimensions to make them reactive
   const [dimensions, setDimensions] = useState(() => {
@@ -30,6 +32,44 @@ export default function HomeScreen() {
 
   const titleScale = useSharedValue(1);
   const titleRotate = useSharedValue(0);
+
+  // Load saved progress on mount
+  useEffect(() => {
+    const loadProgress = async () => {
+      console.log('Loading level progress...');
+      try {
+        const progress = await loadLevelProgress();
+        setUnlockedLevels(progress.unlockedLevels);
+        setHighScores(progress.highScores);
+        console.log('Progress loaded successfully');
+      } catch (error) {
+        console.error('Error loading progress:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProgress();
+  }, []);
+
+  // Reload progress when screen comes into focus
+  useEffect(() => {
+    const reloadProgress = async () => {
+      console.log('Reloading level progress...');
+      try {
+        const progress = await loadLevelProgress();
+        setUnlockedLevels(progress.unlockedLevels);
+        setHighScores(progress.highScores);
+      } catch (error) {
+        console.error('Error reloading progress:', error);
+      }
+    };
+
+    // Set up an interval to check for updates
+    const interval = setInterval(reloadProgress, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Listen for dimension changes
   useEffect(() => {
@@ -96,6 +136,14 @@ export default function HomeScreen() {
   const footerFontSize = Math.min(dimensions.width * 0.035, 14);
   const paddingHorizontal = Math.min(dimensions.width * 0.05, 20);
 
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -150,6 +198,9 @@ export default function HomeScreen() {
 
         <View style={styles.footer}>
           <Text style={[styles.footerText, { fontSize: footerFontSize }]}>Complete levels to unlock more!</Text>
+          <Text style={[styles.footerText, { fontSize: footerFontSize - 2, marginTop: 8 }]}>
+            Unlocked: {unlockedLevels.length} / {LEVELS.length}
+          </Text>
         </View>
       </ScrollView>
     </View>
@@ -160,6 +211,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: colors.text,
+    fontWeight: '600',
   },
   scrollView: {
     flex: 1,

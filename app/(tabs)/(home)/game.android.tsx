@@ -18,6 +18,7 @@ import { LevelPreview } from '@/components/LevelPreview';
 import { colors } from '@/styles/commonStyles';
 import { Orb, GameState } from '@/types/game';
 import { LEVELS, ORB_COLORS } from '@/data/levels';
+import { unlockLevel, updateHighScore } from '@/utils/levelStorage';
 
 interface Particle {
   id: string;
@@ -432,7 +433,7 @@ export default function GameScreen() {
     }, 10000);
   }, []);
 
-  const endGame = useCallback((won: boolean) => {
+  const endGame = useCallback(async (won: boolean) => {
     if (gameEndedRef.current) {
       console.log('Game already ended, skipping');
       return;
@@ -443,6 +444,20 @@ export default function GameScreen() {
     
     cleanup();
     setGameState(prev => ({ ...prev, isPlaying: false }));
+    
+    if (won) {
+      // Save high score
+      await updateHighScore(levelId, gameStateRef.current.score);
+      
+      // Unlock next level
+      const nextLevelId = levelId + 1;
+      const nextLevel = LEVELS.find(l => l.id === nextLevelId);
+      
+      if (nextLevel) {
+        console.log('Unlocking next level:', nextLevelId);
+        await unlockLevel(nextLevelId);
+      }
+    }
     
     setTimeout(() => {
       if (won) {
