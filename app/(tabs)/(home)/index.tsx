@@ -129,6 +129,11 @@ export default function HomeScreen() {
     router.push('/(tabs)/(home)/tutorial');
   };
 
+  const handlePrivacyPolicy = () => {
+    console.log('Opening privacy policy');
+    router.push('/privacy-policy');
+  };
+
   const titleFontSize = Math.min(dimensions.width * 0.1, 42);
   const subtitleFontSize = Math.min(dimensions.width * 0.045, 18);
   const buttonFontSize = Math.min(dimensions.width * 0.045, 18);
@@ -201,6 +206,14 @@ export default function HomeScreen() {
           <Text style={[styles.footerText, { fontSize: footerFontSize - 2, marginTop: 8 }]}>
             Unlocked: {unlockedLevels.length} / {LEVELS.length}
           </Text>
+          <TouchableOpacity 
+            onPress={handlePrivacyPolicy}
+            style={styles.privacyPolicyButton}
+          >
+            <Text style={[styles.privacyPolicyText, { fontSize: footerFontSize - 2 }]}>
+              📋 Privacy Policy
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -274,5 +287,17 @@ const styles = StyleSheet.create({
   footerText: {
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  privacyPolicyButton: {
+    marginTop: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: colors.primary + '20',
+  },
+  privacyPolicyText: {
+    color: colors.primary,
+    textAlign: 'center',
+    fontWeight: '600',
   },
 });
