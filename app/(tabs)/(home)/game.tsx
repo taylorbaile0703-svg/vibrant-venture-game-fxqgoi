@@ -14,6 +14,7 @@ import { GameHUD } from '@/components/GameHUD';
 import { ParticleExplosion } from '@/components/ParticleExplosion';
 import { ScorePopup } from '@/components/ScorePopup';
 import { ComboIndicator } from '@/components/ComboIndicator';
+import { LevelPreview } from '@/components/LevelPreview';
 import { colors } from '@/styles/commonStyles';
 import { Orb, GameState } from '@/types/game';
 import { LEVELS, ORB_COLORS } from '@/data/levels';
@@ -39,7 +40,7 @@ export default function GameScreen() {
   const levelId = parseInt(params.levelId as string) || 1;
   const level = LEVELS.find(l => l.id === levelId) || LEVELS[0];
 
-  // Use state for dimensions to make them reactive
+  const [showPreview, setShowPreview] = useState(true);
   const [dimensions, setDimensions] = useState(() => {
     const window = Dimensions.get('window');
     return {
@@ -60,7 +61,7 @@ export default function GameScreen() {
     lives: 3,
     timeRemaining: level.timeLimit,
     multiplier: 1,
-    isPlaying: true,
+    isPlaying: false,
     isPaused: false,
     freezeActive: false,
   });
@@ -87,7 +88,6 @@ export default function GameScreen() {
     };
   });
 
-  // Listen for dimension changes
   useEffect(() => {
     const subscription = Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
       console.log('Dimensions changed:', window.width, 'x', window.height);
@@ -109,8 +109,7 @@ export default function GameScreen() {
   }, [gameState]);
 
   useEffect(() => {
-    console.log('Game component mounted, starting game');
-    startGame();
+    console.log('Game component mounted');
     return () => {
       console.log('Game component unmounting, cleaning up');
       cleanup();
@@ -144,9 +143,16 @@ export default function GameScreen() {
     orbTimeouts.current.clear();
   }, []);
 
+  const handleStartLevel = useCallback(() => {
+    console.log('Starting level:', levelId);
+    setShowPreview(false);
+    setGameState(prev => ({ ...prev, isPlaying: true }));
+    gameEndedRef.current = false;
+    startGame();
+  }, [levelId]);
+
   const startGame = useCallback(() => {
     console.log('Starting game, level:', levelId);
-    gameEndedRef.current = false;
     
     spawnInterval.current = setInterval(() => {
       const currentState = gameStateRef.current;
@@ -413,27 +419,64 @@ export default function GameScreen() {
     setGameState(prev => ({ ...prev, isPlaying: false }));
     
     setTimeout(() => {
-      Alert.alert(
-        won ? '🎉 Level Complete!' : '😢 Game Over',
-        won 
-          ? `Amazing! You scored ${gameStateRef.current.score} points!\nTarget: ${level.targetScore}`
-          : `You scored ${gameStateRef.current.score} points.\nKeep practicing!`,
-        [
-          {
-            text: 'Back to Menu',
-            onPress: () => router.back(),
-          },
-          {
-            text: 'Try Again',
-            onPress: () => {
-              router.replace({
-                pathname: '/(tabs)/(home)/game',
-                params: { levelId: levelId.toString() },
-              });
+      if (won) {
+        const nextLevelId = levelId + 1;
+        const nextLevel = LEVELS.find(l => l.id === nextLevelId);
+        
+        if (nextLevel) {
+          Alert.alert(
+            '🎉 Level Complete!',
+            `Amazing! You scored ${gameStateRef.current.score} points!\nTarget: ${level.targetScore}\n\nReady for the next challenge?`,
+            [
+              {
+                text: 'Back to Menu',
+                onPress: () => router.back(),
+                style: 'cancel',
+              },
+              {
+                text: 'Next Level',
+                onPress: () => {
+                  router.replace({
+                    pathname: '/(tabs)/(home)/game',
+                    params: { levelId: nextLevelId.toString() },
+                  });
+                },
+              },
+            ]
+          );
+        } else {
+          Alert.alert(
+            '🏆 GAME COMPLETE!',
+            `Congratulations! You&apos;ve completed all levels!\nFinal Score: ${gameStateRef.current.score}`,
+            [
+              {
+                text: 'Back to Menu',
+                onPress: () => router.back(),
+              },
+            ]
+          );
+        }
+      } else {
+        Alert.alert(
+          '😢 Game Over',
+          `You scored ${gameStateRef.current.score} points.\nKeep practicing!`,
+          [
+            {
+              text: 'Back to Menu',
+              onPress: () => router.back(),
             },
-          },
-        ]
-      );
+            {
+              text: 'Try Again',
+              onPress: () => {
+                router.replace({
+                  pathname: '/(tabs)/(home)/game',
+                  params: { levelId: levelId.toString() },
+                });
+              },
+            },
+          ]
+        );
+      }
     }, 500);
   }, [level.targetScore, levelId, router, cleanup]);
 
@@ -471,6 +514,12 @@ export default function GameScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: level.backgroundColor }]}>
+      <LevelPreview
+        level={level}
+        visible={showPreview}
+        onStart={handleStartLevel}
+      />
+
       <Animated.View style={[styles.gameContainer, shakeAnimatedStyle]}>
         <GameHUD
           gameState={gameState}
