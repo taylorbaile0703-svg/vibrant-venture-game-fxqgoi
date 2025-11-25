@@ -88,6 +88,32 @@ export default function GameScreen() {
     };
   });
 
+  // Reset game state when level changes
+  useEffect(() => {
+    console.log('Level changed to:', levelId);
+    cleanup();
+    setShowPreview(true);
+    setOrbs([]);
+    setParticles([]);
+    setScorePopups([]);
+    setCombo(0);
+    setGameState({
+      score: 0,
+      level: levelId,
+      lives: 3,
+      timeRemaining: level.timeLimit,
+      multiplier: 1,
+      isPlaying: false,
+      isPaused: false,
+      freezeActive: false,
+    });
+    gameEndedRef.current = false;
+    orbIdCounter.current = 0;
+    particleIdCounter.current = 0;
+    scorePopupIdCounter.current = 0;
+    lastTapTime.current = 0;
+  }, [levelId, level.timeLimit]);
+
   useEffect(() => {
     const subscription = Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
       console.log('Dimensions changed:', window.width, 'x', window.height);
@@ -436,6 +462,7 @@ export default function GameScreen() {
               {
                 text: 'Next Level',
                 onPress: () => {
+                  console.log('Navigating to next level:', nextLevelId);
                   router.replace({
                     pathname: '/(tabs)/(home)/game',
                     params: { levelId: nextLevelId.toString() },
@@ -468,6 +495,7 @@ export default function GameScreen() {
             {
               text: 'Try Again',
               onPress: () => {
+                console.log('Restarting level:', levelId);
                 router.replace({
                   pathname: '/(tabs)/(home)/game',
                   params: { levelId: levelId.toString() },
