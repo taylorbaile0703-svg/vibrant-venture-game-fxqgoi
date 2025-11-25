@@ -6,8 +6,10 @@ export interface Orb {
   color: string;
   size: number;
   points: number;
-  type: 'normal' | 'bonus' | 'bomb' | 'freeze' | 'multiplier';
+  type: 'normal' | 'bonus' | 'bomb' | 'freeze' | 'multiplier' | 'shrink' | 'giant' | 'rainbow' | 'ghost';
   speed?: number;
+  direction?: { x: number; y: number };
+  isMoving?: boolean;
 }
 
 export interface Level {
@@ -22,6 +24,10 @@ export interface Level {
   backgroundColor: string;
   orbSizeVariation: number;
   orbSpeedMultiplier: number;
+  theme?: 'space' | 'ocean' | 'forest' | 'fire' | 'ice' | 'neon' | 'desert' | 'storm' | 'cosmic' | 'rainbow';
+  mechanic?: 'moving' | 'shrinking' | 'growing' | 'teleporting' | 'gravity' | 'chaos' | 'precision' | 'speed';
+  backgroundGradient?: string[];
+  specialOrbTypes?: Array<'shrink' | 'giant' | 'rainbow' | 'ghost'>;
 }
 
 export interface GameState {

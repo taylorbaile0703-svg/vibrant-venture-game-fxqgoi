@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, Dimensions, TouchableOpacity, Text, Platform, ScaledSize } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
@@ -232,16 +233,36 @@ export default function GameScreen() {
     let points = 10;
 
     if (rand < level.specialOrbChance) {
+      const specialTypes = level.specialOrbTypes || [];
+      const hasSpecialTypes = specialTypes.length > 0;
+      
       const specialRand = Math.random();
-      if (specialRand < 0.3) {
+      
+      if (hasSpecialTypes && specialRand < 0.15 && specialTypes.includes('shrink')) {
+        orbType = 'shrink';
+        color = ORB_COLORS.shrink;
+        points = 25;
+      } else if (hasSpecialTypes && specialRand < 0.3 && specialTypes.includes('giant')) {
+        orbType = 'giant';
+        color = ORB_COLORS.giant;
+        points = 40;
+      } else if (hasSpecialTypes && specialRand < 0.45 && specialTypes.includes('rainbow')) {
+        orbType = 'rainbow';
+        color = ORB_COLORS.rainbow;
+        points = 75;
+      } else if (hasSpecialTypes && specialRand < 0.6 && specialTypes.includes('ghost')) {
+        orbType = 'ghost';
+        color = ORB_COLORS.ghost;
+        points = 35;
+      } else if (specialRand < 0.7) {
         orbType = 'bonus';
         color = ORB_COLORS.bonus;
         points = 50;
-      } else if (specialRand < 0.5) {
+      } else if (specialRand < 0.8) {
         orbType = 'bomb';
         color = ORB_COLORS.bomb;
         points = -50;
-      } else if (specialRand < 0.7) {
+      } else if (specialRand < 0.9) {
         orbType = 'freeze';
         color = ORB_COLORS.freeze;
         points = 20;
@@ -252,6 +273,13 @@ export default function GameScreen() {
       }
     }
 
+    // Add movement for moving mechanic levels
+    const isMoving = level.mechanic === 'moving';
+    const direction = isMoving ? {
+      x: (Math.random() - 0.5) * 2,
+      y: (Math.random() - 0.5) * 2,
+    } : undefined;
+
     return {
       id: `orb-${orbIdCounter.current++}`,
       x,
@@ -261,8 +289,10 @@ export default function GameScreen() {
       points,
       type: orbType,
       speed: level.orbSpeedMultiplier,
+      isMoving,
+      direction,
     };
-  }, [level.orbSizeVariation, level.specialOrbChance, level.orbSpeedMultiplier, dimensions]);
+  }, [level.orbSizeVariation, level.specialOrbChance, level.orbSpeedMultiplier, level.mechanic, level.specialOrbTypes, dimensions]);
 
   const scheduleOrbRemoval = useCallback((orbId: string) => {
     const baseLifetime = 3000;
@@ -530,8 +560,13 @@ export default function GameScreen() {
     setScorePopups(prev => prev.filter(p => p.id !== id));
   }, []);
 
+  const gradientColors = level.backgroundGradient || [level.backgroundColor, level.backgroundColor];
+
   return (
-    <View style={[styles.container, { backgroundColor: level.backgroundColor }]}>
+    <LinearGradient
+      colors={gradientColors}
+      style={styles.container}
+    >
       <LevelPreview
         level={level}
         visible={showPreview}
@@ -590,7 +625,7 @@ export default function GameScreen() {
           </TouchableOpacity>
         </View>
       </Animated.View>
-    </View>
+    </LinearGradient>
   );
 }
 

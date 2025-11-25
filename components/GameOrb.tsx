@@ -10,6 +10,7 @@ import Animated, {
   withRepeat,
   Easing,
   runOnJS,
+  interpolate,
 } from 'react-native-reanimated';
 import { Orb } from '@/types/game';
 
@@ -24,6 +25,8 @@ export const GameOrb = React.memo<GameOrbProps>(({ orb, onPress }) => {
   const rotation = useSharedValue(0);
   const glowScale = useSharedValue(1);
   const floatY = useSharedValue(0);
+  const ghostOpacity = useSharedValue(1);
+  const rainbowHue = useSharedValue(0);
   const hasBeenPressed = useRef(false);
 
   useEffect(() => {
@@ -63,6 +66,27 @@ export const GameOrb = React.memo<GameOrbProps>(({ orb, onPress }) => {
         false
       );
     }
+
+    // Ghost orb fading effect
+    if (orb.type === 'ghost') {
+      ghostOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.3, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
+    }
+
+    // Rainbow orb color cycling
+    if (orb.type === 'rainbow') {
+      rainbowHue.value = withRepeat(
+        withTiming(360, { duration: 2000, easing: Easing.linear }),
+        -1,
+        false
+      );
+    }
   }, [orb.type]);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -72,7 +96,7 @@ export const GameOrb = React.memo<GameOrbProps>(({ orb, onPress }) => {
         { translateY: floatY.value },
         { rotate: `${rotation.value}deg` },
       ],
-      opacity: opacity.value,
+      opacity: opacity.value * (orb.type === 'ghost' ? ghostOpacity.value : 1),
     };
   });
 
@@ -80,6 +104,15 @@ export const GameOrb = React.memo<GameOrbProps>(({ orb, onPress }) => {
     return {
       transform: [{ scale: glowScale.value }],
       opacity: opacity.value * 0.4,
+    };
+  });
+
+  const rainbowStyle = useAnimatedStyle(() => {
+    if (orb.type !== 'rainbow') return {};
+    
+    const hue = rainbowHue.value;
+    return {
+      backgroundColor: `hsl(${hue}, 100%, 50%)`,
     };
   });
 
@@ -112,8 +145,31 @@ export const GameOrb = React.memo<GameOrbProps>(({ orb, onPress }) => {
         return '❄️';
       case 'multiplier':
         return '✨';
+      case 'shrink':
+        return '🔻';
+      case 'giant':
+        return '🔺';
+      case 'rainbow':
+        return '🌈';
+      case 'ghost':
+        return '👻';
       default:
         return '';
+    }
+  };
+
+  const getOrbBorderColor = () => {
+    switch (orb.type) {
+      case 'shrink':
+        return '#9C27B0';
+      case 'giant':
+        return '#FF5722';
+      case 'rainbow':
+        return '#FFFFFF';
+      case 'ghost':
+        return '#9E9E9E';
+      default:
+        return 'rgba(255, 255, 255, 0.5)';
     }
   };
 
@@ -131,7 +187,7 @@ export const GameOrb = React.memo<GameOrbProps>(({ orb, onPress }) => {
       ]}
     >
       {/* Glow effect for special orbs */}
-      {(orb.type === 'bonus' || orb.type === 'multiplier') && (
+      {(orb.type === 'bonus' || orb.type === 'multiplier' || orb.type === 'rainbow') && (
         <Animated.View
           style={[
             styles.glow,
@@ -139,7 +195,7 @@ export const GameOrb = React.memo<GameOrbProps>(({ orb, onPress }) => {
               width: orb.size * 1.4,
               height: orb.size * 1.4,
               borderRadius: (orb.size * 1.4) / 2,
-              backgroundColor: orb.color,
+              backgroundColor: orb.type === 'rainbow' ? '#FF1744' : orb.color,
             },
             glowStyle,
           ]}
@@ -149,18 +205,31 @@ export const GameOrb = React.memo<GameOrbProps>(({ orb, onPress }) => {
       <TouchableOpacity
         style={[
           styles.orb,
+          orb.type === 'rainbow' ? {} : { backgroundColor: orb.color },
           {
-            backgroundColor: orb.color,
             width: orb.size,
             height: orb.size,
             borderRadius: orb.size / 2,
             borderWidth: orb.type !== 'normal' ? 3 : 0,
-            borderColor: 'rgba(255, 255, 255, 0.5)',
+            borderColor: getOrbBorderColor(),
           },
         ]}
         onPress={handlePress}
         activeOpacity={0.8}
       >
+        {/* Rainbow animated background */}
+        {orb.type === 'rainbow' && (
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                borderRadius: orb.size / 2,
+              },
+              rainbowStyle,
+            ]}
+          />
+        )}
+
         {/* Inner shine effect */}
         <View
           style={[
@@ -183,6 +252,18 @@ export const GameOrb = React.memo<GameOrbProps>(({ orb, onPress }) => {
         {orb.type === 'bonus' && (
           <View style={styles.pointsBadge}>
             <Text style={styles.pointsText}>+{orb.points}</Text>
+          </View>
+        )}
+
+        {/* Special indicators */}
+        {orb.type === 'shrink' && (
+          <View style={styles.specialBadge}>
+            <Text style={styles.specialText}>TINY</Text>
+          </View>
+        )}
+        {orb.type === 'giant' && (
+          <View style={styles.specialBadge}>
+            <Text style={styles.specialText}>HUGE</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -232,5 +313,18 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     fontSize: 10,
     fontWeight: '800',
+  },
+  specialBadge: {
+    position: 'absolute',
+    top: -8,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  specialText: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '900',
   },
 });
