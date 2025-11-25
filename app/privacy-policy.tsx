@@ -1,11 +1,23 @@
 
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { colors } from '@/styles/commonStyles';
 
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
+
+  const handleGitHubLink = async () => {
+    const githubUrl = 'https://github.com';
+    try {
+      await WebBrowser.openBrowserAsync(githubUrl);
+    } catch (error) {
+      console.error('Error opening GitHub link:', error);
+      // Fallback to Linking if WebBrowser fails
+      Linking.openURL(githubUrl);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -87,6 +99,18 @@ export default function PrivacyPolicyScreen() {
             If you have any questions about this privacy policy or our data practices, please contact us through the app store where you downloaded Color Blast.
           </Text>
 
+          <Text style={styles.sectionTitle}>11. Open Source</Text>
+          <Text style={styles.paragraph}>
+            This app is open source and available on GitHub. You can view the source code, report issues, or contribute to the project.
+          </Text>
+
+          <TouchableOpacity 
+            style={styles.githubButton}
+            onPress={handleGitHubLink}
+          >
+            <Text style={styles.githubButtonText}>🔗 View on GitHub</Text>
+          </TouchableOpacity>
+
           <View style={styles.footer}>
             <Text style={styles.footerText}>
               By using Color Blast, you agree to this privacy policy.
@@ -167,6 +191,22 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginLeft: 16,
     marginBottom: 8,
+  },
+  githubButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.15)',
+    elevation: 4,
+  },
+  githubButtonText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   footer: {
     marginTop: 32,
