@@ -185,9 +185,10 @@ export default function GameScreen() {
   const startGame = useCallback(() => {
     console.log('Starting game, level:', levelId);
     
+    // Orb spawning interval - continues even when freeze is active
     spawnInterval.current = setInterval(() => {
       const currentState = gameStateRef.current;
-      if (currentState.isPlaying && !currentState.isPaused && !currentState.freezeActive) {
+      if (currentState.isPlaying && !currentState.isPaused) {
         setOrbs(currentOrbs => {
           if (currentOrbs.length < level.maxOrbs) {
             const newOrb = createOrb();
@@ -199,6 +200,7 @@ export default function GameScreen() {
       }
     }, level.orbSpawnRate);
 
+    // Timer interval - pauses when freeze is active
     timerInterval.current = setInterval(() => {
       const currentState = gameStateRef.current;
       if (currentState.isPlaying && !currentState.isPaused && !currentState.freezeActive) {
@@ -418,11 +420,12 @@ export default function GameScreen() {
   }, [level.targetScore, combo, triggerScreenShake, resetCombo, updateCombo, getComboMultiplier]);
 
   const activateFreeze = useCallback(() => {
-    console.log('Freeze activated');
+    console.log('Freeze activated - timer frozen, orbs continue');
     setGameState(prev => ({ ...prev, freezeActive: true }));
     
     if (freezeTimeout.current) clearTimeout(freezeTimeout.current);
     freezeTimeout.current = setTimeout(() => {
+      console.log('Freeze deactivated');
       setGameState(prev => ({ ...prev, freezeActive: false }));
     }, 5000);
   }, []);
