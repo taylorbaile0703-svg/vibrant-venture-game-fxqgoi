@@ -1,23 +1,11 @@
 
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { colors } from '@/styles/commonStyles';
 
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
-
-  const handleGitHubLink = async () => {
-    const githubUrl = 'https://github.com/taylorbaile0703-svg';
-    try {
-      await WebBrowser.openBrowserAsync(githubUrl);
-    } catch (error) {
-      console.error('Error opening GitHub link:', error);
-      // Fallback to Linking if WebBrowser fails
-      Linking.openURL(githubUrl);
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -101,15 +89,14 @@ export default function PrivacyPolicyScreen() {
 
           <Text style={styles.sectionTitle}>11. Open Source</Text>
           <Text style={styles.paragraph}>
-            This app is open source and available on GitHub. You can view the source code, report issues, or contribute to the project.
+            This app is open source. The source code is available at:
           </Text>
-
-          <TouchableOpacity 
-            style={styles.githubButton}
-            onPress={handleGitHubLink}
-          >
-            <Text style={styles.githubButtonText}>🔗 View on GitHub</Text>
-          </TouchableOpacity>
+          <Text style={styles.githubText}>
+            https://github.com/taylorbaile0703-svg
+          </Text>
+          <Text style={styles.paragraph}>
+            You can view the source code, report issues, or contribute to the project through the repository.
+          </Text>
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>
@@ -192,21 +179,14 @@ const styles = StyleSheet.create({
     marginLeft: 16,
     marginBottom: 8,
   },
-  githubButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 8,
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.15)',
-    elevation: 4,
-  },
-  githubButtonText: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontWeight: '700',
+  githubText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 22,
+    marginLeft: 16,
+    marginBottom: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontStyle: 'italic',
   },
   footer: {
     marginTop: 32,
