@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Platform, ScaledSize } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -41,7 +42,7 @@ export default function HomeScreen() {
         const progress = await loadLevelProgress();
         setUnlockedLevels(progress.unlockedLevels);
         setHighScores(progress.highScores);
-        console.log('Progress loaded successfully');
+        console.log('Progress loaded successfully:', progress);
       } catch (error) {
         console.error('Error loading progress:', error);
       } finally {
@@ -53,23 +54,23 @@ export default function HomeScreen() {
   }, []);
 
   // Reload progress when screen comes into focus
-  useEffect(() => {
-    const reloadProgress = async () => {
-      console.log('Reloading level progress...');
-      try {
-        const progress = await loadLevelProgress();
-        setUnlockedLevels(progress.unlockedLevels);
-        setHighScores(progress.highScores);
-      } catch (error) {
-        console.error('Error reloading progress:', error);
-      }
-    };
+  useFocusEffect(
+    React.useCallback(() => {
+      const reloadProgress = async () => {
+        console.log('Screen focused, reloading level progress...');
+        try {
+          const progress = await loadLevelProgress();
+          setUnlockedLevels(progress.unlockedLevels);
+          setHighScores(progress.highScores);
+          console.log('Progress reloaded successfully:', progress);
+        } catch (error) {
+          console.error('Error reloading progress:', error);
+        }
+      };
 
-    // Set up an interval to check for updates
-    const interval = setInterval(reloadProgress, 2000);
-
-    return () => clearInterval(interval);
-  }, []);
+      reloadProgress();
+    }, [])
+  );
 
   // Listen for dimension changes
   useEffect(() => {
