@@ -9,7 +9,7 @@ export default function PrivacyPolicyScreen() {
   const router = useRouter();
 
   const handleGitHubLink = async () => {
-    const githubUrl = 'https://github.com';
+    const githubUrl = 'https://github.com/taylorbaile0703-svg';
     try {
       await WebBrowser.openBrowserAsync(githubUrl);
     } catch (error) {
