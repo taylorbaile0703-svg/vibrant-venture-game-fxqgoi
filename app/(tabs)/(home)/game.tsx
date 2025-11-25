@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, Dimensions, TouchableOpacity, Text, Alert, Platform, ScaledSize } from 'react-native';
+import { View, StyleSheet, Dimensions, TouchableOpacity, Text, Platform, ScaledSize } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -450,63 +450,21 @@ export default function GameScreen() {
         const nextLevel = LEVELS.find(l => l.id === nextLevelId);
         
         if (nextLevel) {
-          Alert.alert(
-            '🎉 Level Complete!',
-            `Amazing! You scored ${gameStateRef.current.score} points!\nTarget: ${level.targetScore}\n\nReady for the next challenge?`,
-            [
-              {
-                text: 'Back to Menu',
-                onPress: () => router.back(),
-                style: 'cancel',
-              },
-              {
-                text: 'Next Level',
-                onPress: () => {
-                  console.log('Navigating to next level:', nextLevelId);
-                  router.replace({
-                    pathname: '/(tabs)/(home)/game',
-                    params: { levelId: nextLevelId.toString() },
-                  });
-                },
-              },
-            ]
-          );
+          console.log('Automatically navigating to next level:', nextLevelId);
+          router.replace({
+            pathname: '/(tabs)/(home)/game',
+            params: { levelId: nextLevelId.toString() },
+          });
         } else {
-          Alert.alert(
-            '🏆 GAME COMPLETE!',
-            `Congratulations! You&apos;ve completed all levels!\nFinal Score: ${gameStateRef.current.score}`,
-            [
-              {
-                text: 'Back to Menu',
-                onPress: () => router.back(),
-              },
-            ]
-          );
+          console.log('All levels completed! Returning to home');
+          router.replace('/(tabs)/(home)');
         }
       } else {
-        Alert.alert(
-          '😢 Game Over',
-          `You scored ${gameStateRef.current.score} points.\nKeep practicing!`,
-          [
-            {
-              text: 'Back to Menu',
-              onPress: () => router.back(),
-            },
-            {
-              text: 'Try Again',
-              onPress: () => {
-                console.log('Restarting level:', levelId);
-                router.replace({
-                  pathname: '/(tabs)/(home)/game',
-                  params: { levelId: levelId.toString() },
-                });
-              },
-            },
-          ]
-        );
+        console.log('Game over, returning to home');
+        router.replace('/(tabs)/(home)');
       }
-    }, 500);
-  }, [level.targetScore, levelId, router, cleanup]);
+    }, 1500);
+  }, [levelId, router, cleanup]);
 
   const handlePause = useCallback(() => {
     console.log('Game paused/resumed');
@@ -515,21 +473,9 @@ export default function GameScreen() {
   }, []);
 
   const handleQuit = useCallback(() => {
-    Alert.alert(
-      'Quit Game?',
-      'Are you sure you want to quit?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Quit', 
-          onPress: () => {
-            cleanup();
-            router.back();
-          }, 
-          style: 'destructive' 
-        },
-      ]
-    );
+    console.log('Quitting game, returning to home');
+    cleanup();
+    router.replace('/(tabs)/(home)');
   }, [router, cleanup]);
 
   const removeParticle = useCallback((id: string) => {
