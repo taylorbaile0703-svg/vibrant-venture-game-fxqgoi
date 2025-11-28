@@ -90,7 +90,7 @@ export function LevelPreview({ level, visible, onStart }: LevelPreviewProps) {
     }
   };
 
-  const gradientColors = level.backgroundGradient || [level.backgroundColor, level.backgroundColor];
+  const gradientColors: [string, string, ...string[]] = level.backgroundGradient || [level.backgroundColor, level.backgroundColor];
 
   return (
     <Modal

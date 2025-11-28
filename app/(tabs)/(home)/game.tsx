@@ -573,7 +573,7 @@ export default function GameScreen() {
     setScorePopups(prev => prev.filter(p => p.id !== id));
   }, []);
 
-  const gradientColors = level.backgroundGradient || [level.backgroundColor, level.backgroundColor];
+  const gradientColors: [string, string, ...string[]] = level.backgroundGradient || [level.backgroundColor, level.backgroundColor];
 
   return (
     <LinearGradient
