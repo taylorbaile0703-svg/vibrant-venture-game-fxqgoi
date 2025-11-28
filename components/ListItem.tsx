@@ -37,7 +37,7 @@ export default function ListItem({ listId }: { listId: string }) {
         }}
       >
         <Reanimated.View style={[styleAnimation, styles.rightAction]}>
-          <IconSymbol name="trash.fill" size={24} color="white" />
+          <IconSymbol android_material_icon_name="delete" size={24} color="white" />
         </Reanimated.View>
       </Pressable>
     );

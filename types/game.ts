@@ -26,8 +26,8 @@ export interface Level {
   orbSpeedMultiplier: number;
   theme?: 'space' | 'ocean' | 'forest' | 'fire' | 'ice' | 'neon' | 'desert' | 'storm' | 'cosmic' | 'rainbow';
   mechanic?: 'moving' | 'shrinking' | 'growing' | 'teleporting' | 'gravity' | 'chaos' | 'precision' | 'speed';
-  backgroundGradient?: string[];
-  specialOrbTypes?: Array<'shrink' | 'giant' | 'rainbow' | 'ghost'>;
+  backgroundGradient?: [string, string, ...string[]];
+  specialOrbTypes?: ('shrink' | 'giant' | 'rainbow' | 'ghost')[];
 }
 
 export interface GameState {
