@@ -39,9 +39,10 @@ export default function GameScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const levelId = parseInt(params.levelId as string) || 1;
+  const autoStart = params.autoStart === 'true';
   const level = LEVELS.find(l => l.id === levelId) || LEVELS[0];
 
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(!autoStart);
   const [dimensions, setDimensions] = useState(() => {
     const window = Dimensions.get('window');
     return {
@@ -80,6 +81,7 @@ export default function GameScreen() {
   const gameEndedRef = useRef(false);
   const lastTapTime = useRef(0);
   const isNavigatingRef = useRef(false);
+  const hasAutoStartedRef = useRef(false);
 
   const shakeX = useSharedValue(0);
   const shakeY = useSharedValue(0);
@@ -120,9 +122,9 @@ export default function GameScreen() {
 
   // Reset game state when level changes
   useEffect(() => {
-    console.log('Level changed to:', levelId);
+    console.log('Level changed to:', levelId, 'autoStart:', autoStart);
     cleanup();
-    setShowPreview(true);
+    setShowPreview(!autoStart);
     setOrbs([]);
     setParticles([]);
     setScorePopups([]);
@@ -133,7 +135,7 @@ export default function GameScreen() {
       lives: 3,
       timeRemaining: level.timeLimit,
       multiplier: 1,
-      isPlaying: false,
+      isPlaying: autoStart,
       isPaused: false,
       freezeActive: false,
     });
@@ -143,7 +145,18 @@ export default function GameScreen() {
     particleIdCounter.current = 0;
     scorePopupIdCounter.current = 0;
     lastTapTime.current = 0;
-  }, [levelId, level.timeLimit, cleanup]);
+    hasAutoStartedRef.current = false;
+
+    // Auto-start the game if autoStart is true
+    if (autoStart && !hasAutoStartedRef.current) {
+      hasAutoStartedRef.current = true;
+      console.log('Auto-starting level:', levelId);
+      // Small delay to ensure state is set
+      setTimeout(() => {
+        startGame();
+      }, 100);
+    }
+  }, [levelId, autoStart, level.timeLimit, cleanup]);
 
   useEffect(() => {
     const subscription = Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
@@ -232,16 +245,36 @@ export default function GameScreen() {
     let points = 10;
 
     if (rand < level.specialOrbChance) {
+      const specialTypes = level.specialOrbTypes || [];
+      const hasSpecialTypes = specialTypes.length > 0;
+      
       const specialRand = Math.random();
-      if (specialRand < 0.3) {
+      
+      if (hasSpecialTypes && specialRand < 0.15 && specialTypes.includes('shrink')) {
+        orbType = 'shrink';
+        color = ORB_COLORS.shrink;
+        points = 25;
+      } else if (hasSpecialTypes && specialRand < 0.3 && specialTypes.includes('giant')) {
+        orbType = 'giant';
+        color = ORB_COLORS.giant;
+        points = 40;
+      } else if (hasSpecialTypes && specialRand < 0.45 && specialTypes.includes('rainbow')) {
+        orbType = 'rainbow';
+        color = ORB_COLORS.rainbow;
+        points = 75;
+      } else if (hasSpecialTypes && specialRand < 0.6 && specialTypes.includes('ghost')) {
+        orbType = 'ghost';
+        color = ORB_COLORS.ghost;
+        points = 35;
+      } else if (specialRand < 0.7) {
         orbType = 'bonus';
         color = ORB_COLORS.bonus;
         points = 50;
-      } else if (specialRand < 0.5) {
+      } else if (specialRand < 0.8) {
         orbType = 'bomb';
         color = ORB_COLORS.bomb;
         points = -50;
-      } else if (specialRand < 0.7) {
+      } else if (specialRand < 0.9) {
         orbType = 'freeze';
         color = ORB_COLORS.freeze;
         points = 20;
@@ -252,6 +285,13 @@ export default function GameScreen() {
       }
     }
 
+    // Add movement for moving mechanic levels
+    const isMoving = level.mechanic === 'moving';
+    const direction = isMoving ? {
+      x: (Math.random() - 0.5) * 2,
+      y: (Math.random() - 0.5) * 2,
+    } : undefined;
+
     return {
       id: `orb-${orbIdCounter.current++}`,
       x,
@@ -261,8 +301,10 @@ export default function GameScreen() {
       points,
       type: orbType,
       speed: level.orbSpeedMultiplier,
+      isMoving,
+      direction,
     };
-  }, [level.orbSizeVariation, level.specialOrbChance, level.orbSpeedMultiplier, dimensions]);
+  }, [level.orbSizeVariation, level.specialOrbChance, level.orbSpeedMultiplier, level.mechanic, level.specialOrbTypes, dimensions]);
 
   const scheduleOrbRemoval = useCallback((orbId: string) => {
     const baseLifetime = 3000;
@@ -483,7 +525,7 @@ export default function GameScreen() {
           
           if (nextLevel) {
             console.log('Automatically navigating to next level:', nextLevelId);
-            router.replace(`/(tabs)/(home)/game?levelId=${nextLevelId}`);
+            router.replace(`/(tabs)/(home)/game?levelId=${nextLevelId}&autoStart=true`);
           } else {
             console.log('All levels completed! Returning to home');
             router.replace('/(tabs)/(home)');

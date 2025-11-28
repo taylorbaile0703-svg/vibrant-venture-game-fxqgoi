@@ -40,9 +40,10 @@ export default function GameScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const levelId = parseInt(params.levelId as string) || 1;
+  const autoStart = params.autoStart === 'true';
   const level = LEVELS.find(l => l.id === levelId) || LEVELS[0];
 
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(!autoStart);
   const [dimensions, setDimensions] = useState(() => {
     const window = Dimensions.get('window');
     return {
@@ -81,6 +82,7 @@ export default function GameScreen() {
   const gameEndedRef = useRef(false);
   const lastTapTime = useRef(0);
   const isNavigatingRef = useRef(false);
+  const hasAutoStartedRef = useRef(false);
 
   const shakeX = useSharedValue(0);
   const shakeY = useSharedValue(0);
@@ -121,9 +123,9 @@ export default function GameScreen() {
 
   // Reset game state when level changes
   useEffect(() => {
-    console.log('Level changed to:', levelId);
+    console.log('Level changed to:', levelId, 'autoStart:', autoStart);
     cleanup();
-    setShowPreview(true);
+    setShowPreview(!autoStart);
     setOrbs([]);
     setParticles([]);
     setScorePopups([]);
@@ -134,7 +136,7 @@ export default function GameScreen() {
       lives: 3,
       timeRemaining: level.timeLimit,
       multiplier: 1,
-      isPlaying: false,
+      isPlaying: autoStart,
       isPaused: false,
       freezeActive: false,
     });
@@ -144,7 +146,18 @@ export default function GameScreen() {
     particleIdCounter.current = 0;
     scorePopupIdCounter.current = 0;
     lastTapTime.current = 0;
-  }, [levelId, level.timeLimit, cleanup]);
+    hasAutoStartedRef.current = false;
+
+    // Auto-start the game if autoStart is true
+    if (autoStart && !hasAutoStartedRef.current) {
+      hasAutoStartedRef.current = true;
+      console.log('Auto-starting level:', levelId);
+      // Small delay to ensure state is set
+      setTimeout(() => {
+        startGame();
+      }, 100);
+    }
+  }, [levelId, autoStart, level.timeLimit, cleanup]);
 
   useEffect(() => {
     const subscription = Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
@@ -513,7 +526,7 @@ export default function GameScreen() {
           
           if (nextLevel) {
             console.log('Automatically navigating to next level:', nextLevelId);
-            router.replace(`/(tabs)/(home)/game?levelId=${nextLevelId}`);
+            router.replace(`/(tabs)/(home)/game?levelId=${nextLevelId}&autoStart=true`);
           } else {
             console.log('All levels completed! Returning to home');
             router.replace('/(tabs)/(home)');
